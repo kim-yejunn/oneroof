@@ -35,3 +35,6 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Console build output copied in by the Docker build ###
+src/main/resources/static/
