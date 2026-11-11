@@ -1,0 +1,14 @@
+version: axhub/v1
+name: oneroof
+root: app
+runtime:
+  port: 8080
+  health_path: /healthz
+  healthcheck:
+    start_period: 120s
+build:
+  framework: java
+  deploy_method: docker
+  dockerfile: Dockerfile
+database:
+  engine: postgres
