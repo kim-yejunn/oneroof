@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { get, post } from '../api.ts'
 import type { PendingApproval, Period, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ROLE_LABEL, won } from '../ui.tsx'
@@ -13,17 +13,11 @@ export function Workbench({ role }: { role: RoleCode }) {
     queryKey: ['pending', role],
     queryFn: () => get<PendingApproval[]>(`/approvals/pending?role=${role}`),
   })
-  const [selected, setSelected] = useState<number | null>(null)
+  const [picked, setSelected] = useState<number | null>(null)
 
-  const selectable = pending.filter((item) => item.subjectType === 'RebateReview')
-  useEffect(() => {
-    if (selected !== null && selectable.some((item) => Number(item.subjectId) === selected)) {
-      return
-    }
-    if (selectable.length > 0) {
-      setSelected(Number(selectable[0].subjectId))
-    }
-  }, [selectable, selected])
+  // Follow the user's pick while it is still waiting; once it is decided, move on to the next item.
+  const selectable = pending.filter((item) => item.subjectType === 'RebateReview').map((item) => Number(item.subjectId))
+  const selected = picked !== null && selectable.includes(picked) ? picked : (selectable[0] ?? picked)
 
   const submit = useMutation({
     mutationFn: (period: string) => post<{ accepted: boolean }>('/settlements', role, { period }),
