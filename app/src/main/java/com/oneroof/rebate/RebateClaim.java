@@ -6,6 +6,8 @@ import java.time.YearMonth;
 import com.oneroof.shared.Money;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
@@ -45,6 +47,13 @@ public class RebateClaim {
 	@Column(name = "source_ref", nullable = false)
 	private String sourceRef;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "settlement_status", nullable = false)
+	private ClaimStatus settlementStatus;
+
+	@Column(name = "review_id")
+	private Long reviewId;
+
 	protected RebateClaim() {
 	}
 
@@ -59,6 +68,39 @@ public class RebateClaim {
 		this.originalApprover = originalApprover;
 		this.originalPaymentDate = originalPaymentDate;
 		this.sourceRef = sourceRef;
+		this.settlementStatus = switch (originalStatus) {
+			case "승인" -> ClaimStatus.SETTLED_IN_SOURCE;
+			case "반려" -> ClaimStatus.REJECTED_IN_SOURCE;
+			default -> ClaimStatus.PENDING;
+		};
+	}
+
+	void submitForReview(long reviewId) {
+		requireStatus(ClaimStatus.PENDING);
+		this.reviewId = reviewId;
+		this.settlementStatus = ClaimStatus.UNDER_APPROVAL;
+	}
+
+	void requestPayment() {
+		requireStatus(ClaimStatus.UNDER_APPROVAL);
+		this.settlementStatus = ClaimStatus.PAYMENT_REQUESTED;
+	}
+
+	void reject() {
+		requireStatus(ClaimStatus.UNDER_APPROVAL);
+		this.settlementStatus = ClaimStatus.REJECTED;
+	}
+
+	void markPaid() {
+		requireStatus(ClaimStatus.PAYMENT_REQUESTED);
+		this.settlementStatus = ClaimStatus.PAID;
+	}
+
+	private void requireStatus(ClaimStatus expected) {
+		if (this.settlementStatus != expected) {
+			throw new IllegalStateException("장려금 %s 은 %s 상태라 처리할 수 없음 (필요 상태 %s)".formatted(this.rebateId,
+					this.settlementStatus, expected));
+		}
 	}
 
 	public String getRebateId() {
@@ -95,5 +137,13 @@ public class RebateClaim {
 
 	public String getSourceRef() {
 		return this.sourceRef;
+	}
+
+	public ClaimStatus getSettlementStatus() {
+		return this.settlementStatus;
+	}
+
+	public Long getReviewId() {
+		return this.reviewId;
 	}
 }
