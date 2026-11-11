@@ -1,3 +1,4 @@
 # The contest materials are evidence and must stay byte-for-byte identical to what was distributed,
 # so git must not normalise their line endings.
 01_참가자_배포용/** -text
+app/src/main/resources/original/** -text
