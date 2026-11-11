@@ -1,0 +1,10 @@
+# Local development database only. AXHub builds from the Dockerfile and ignores this file.
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: oneroof
+      POSTGRES_USER: oneroof
+      POSTGRES_PASSWORD: oneroof
+    ports:
+      - "54329:5432"

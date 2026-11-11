@@ -9,7 +9,6 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,10 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class PlatformCheckController {
 
-	private final ObjectProvider<DataSource> dataSource;
+	private final DataSource dataSource;
 	private final Environment environment;
 
-	public PlatformCheckController(ObjectProvider<DataSource> dataSource, Environment environment) {
+	public PlatformCheckController(DataSource dataSource, Environment environment) {
 		this.dataSource = dataSource;
 		this.environment = environment;
 	}
@@ -49,12 +48,7 @@ public class PlatformCheckController {
 		result.put("databaseUrl", describe("DATABASE_URL"));
 		result.put("directDatabaseUrl", describe("DIRECT_DATABASE_URL"));
 
-		DataSource source = dataSource.getIfAvailable();
-		if (source == null) {
-			result.put("database", "not configured");
-			return result;
-		}
-		try (Connection connection = source.getConnection()) {
+		try (Connection connection = this.dataSource.getConnection()) {
 			result.put("databaseProduct", connection.getMetaData().getDatabaseProductVersion());
 			int repeats = 0;
 			for (int i = 0; i < 8; i++) {
