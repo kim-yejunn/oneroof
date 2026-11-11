@@ -26,12 +26,6 @@ public class PlatformCheckController {
 		this.environment = environment;
 	}
 
-	@GetMapping(value = "/", produces = MediaType.TEXT_HTML_VALUE)
-	String home() {
-		return "<!doctype html><html lang=\"ko\"><head><meta charset=\"utf-8\"><title>OneRoof</title></head>"
-				+ "<body><h1>AX 인재전쟁 배포 테스트</h1></body></html>";
-	}
-
 	/** Health probe target: answers without touching the database. */
 	@GetMapping(value = "/healthz", produces = MediaType.TEXT_PLAIN_VALUE)
 	String healthz() {
