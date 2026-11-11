@@ -19,7 +19,7 @@ export function Settlements({ role }: { role: RoleCode }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="grid grid-cols-6 gap-3">
+      <div className="grid grid-cols-3 gap-3 2xl:grid-cols-6">
         {periods.map((item) => (
           <button
             key={item.period}
@@ -48,7 +48,7 @@ export function Settlements({ role }: { role: RoleCode }) {
         ))}
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,460px)_minmax(0,1fr)] gap-4">
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,400px)_minmax(0,1fr)] gap-4">
         <Card className="min-h-0 overflow-y-auto">
           <CardTitle aside={<span className="text-xs text-ink-mute">{reviews.length}건</span>}>{current} 검토</CardTitle>
           {reviews.length === 0 ? (

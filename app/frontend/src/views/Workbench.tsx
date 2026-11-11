@@ -32,7 +32,7 @@ export function Workbench({ role }: { role: RoleCode }) {
   const routine = pending.filter((item) => item.exceedsLimit === false)
 
   return (
-    <div className="grid h-full grid-cols-[340px_minmax(0,1fr)] gap-4">
+    <div className="grid h-full grid-cols-[300px_minmax(0,1fr)] gap-4 2xl:grid-cols-[340px_minmax(0,1fr)]">
       <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pb-6">
         {unsubmitted.map((period) => (
           <Card key={period.period}>

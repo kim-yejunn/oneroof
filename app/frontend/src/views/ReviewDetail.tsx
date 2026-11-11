@@ -32,7 +32,8 @@ export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleC
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+    <div className="@container">
+      <div className="grid grid-cols-1 gap-4 @5xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-4">
         <DecisionCard review={review} role={role} />
         <ClaimsCard review={review} />
@@ -41,6 +42,7 @@ export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleC
         {review.evidence && <EvidenceCard group={review.evidence} />}
         {review.history && <HistoryCard history={review.history} currentPeriod={review.period} />}
         <TimelineCard review={review} />
+      </div>
       </div>
     </div>
   )
@@ -65,7 +67,7 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
   const hasAuthority = role === review.requiredApprover
 
   return (
-    <Card>
+    <Card className="@container">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StatusBadge status={review.status} />
         <Badge tone="gray">{review.period}</Badge>
@@ -76,7 +78,7 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
         {review.relatedGroup ? `${review.unitKey} · ${review.memberAgencyIds.split(',').join(', ')}` : review.unitKey}
       </h2>
 
-      <div className="mt-5 grid grid-cols-3 gap-3">
+      <div className="mt-5 grid grid-cols-1 gap-3 @md:grid-cols-3">
         <Figure label={review.relatedGroup ? '관련자 합산' : '월 지급액'} value={won(review.totalKrw)} tag={<ProvenanceBadge code="CALCULATED" />} />
         <Figure label="월 한도" value={won(review.limitKrw)} tag={<ProvenanceBadge code="ORIGINAL" />} />
         <Figure
@@ -92,7 +94,7 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
           className={`h-full rounded-full ${review.exceedsLimit ? 'bg-danger' : 'bg-brand'}`}
           style={{ width: `${fill}%` }}
         />
-        <div className="absolute -top-1 h-4.5 w-0.5 bg-ink" style={{ left: `${ratio}%` }} title="월 한도" />
+        <div className="absolute -top-1 h-4.5 w-0.5 bg-ink" style={{ left: `calc(${ratio}% - 2px)` }} title="월 한도" />
       </div>
       <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
         승인 권한은 <b className="text-ink">{ROLE_LABEL[review.requiredApprover]}</b>입니다.{' '}
@@ -154,12 +156,14 @@ function Figure({
 }) {
   const color = emphasis === 'danger' ? 'text-danger' : emphasis === 'ok' ? 'text-success' : 'text-ink'
   return (
-    <div className="rounded-xl bg-fill px-4 py-3.5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium text-ink-soft">{label}</span>
-        {tag}
+    <div className="@container min-w-0 rounded-xl bg-fill px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <span className="whitespace-nowrap text-xs font-medium text-ink-soft">{label}</span>
+        <span className="shrink-0">{tag}</span>
       </div>
-      <div className={`num mt-1.5 text-[22px] font-bold ${color}`}>{value}</div>
+      <div className={`num mt-1.5 whitespace-nowrap text-lg font-bold @[11rem]:text-xl @[13rem]:text-[22px] ${color}`}>
+        {value}
+      </div>
     </div>
   )
 }
@@ -225,17 +229,30 @@ export function EvidenceCard({ group }: { group: Group }) {
               )}
               {!link.related && <Badge tone="gray">그룹 내 전이 연결</Badge>}
             </div>
-            <ul className="flex flex-col gap-1.5">
-              {link.matches.map((match) => (
-                <li key={match.kind} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
-                  <span className="w-14 shrink-0 font-semibold text-ink-soft">{match.kindLabel}</span>
-                  <span className="font-medium">{match.left.value}</span>
-                  <Badge tone={match.left.basis === 'OBSERVED_DEPOSIT' ? 'orange' : 'gray'}>{match.left.basisLabel}</Badge>
-                  <span className="text-ink-mute">↔</span>
-                  <Badge tone={match.right.basis === 'OBSERVED_DEPOSIT' ? 'orange' : 'gray'}>{match.right.basisLabel}</Badge>
-                  <SourceRef value={match.left.sourceRef} />
-                </li>
-              ))}
+            <ul className="flex flex-col gap-2.5">
+              {link.matches.map((match) => {
+                const sources = [...new Set([match.left.sourceRef, match.right.sourceRef])]
+                return (
+                  <li key={match.kind} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 text-[13px]">
+                    <span className="pt-px font-semibold text-ink-soft">{match.kindLabel}</span>
+                    <div className="min-w-0">
+                      <div className="break-words font-medium">{match.left.value}</div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <Badge tone={match.left.basis === 'OBSERVED_DEPOSIT' ? 'orange' : 'gray'}>
+                          {match.left.agencyId} {match.left.basisLabel}
+                        </Badge>
+                        <span className="text-ink-mute">↔</span>
+                        <Badge tone={match.right.basis === 'OBSERVED_DEPOSIT' ? 'orange' : 'gray'}>
+                          {match.right.agencyId} {match.right.basisLabel}
+                        </Badge>
+                        {sources.map((source) => (
+                          <SourceRef key={source} value={source} />
+                        ))}
+                      </div>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}
@@ -249,7 +266,7 @@ export function HistoryCard({ history, currentPeriod }: { history: HistoryMonth[
   const max = Math.max(...history.map((month) => Math.max(month.totalKrw, month.limitKrw)))
   const bypassed = history.filter((month) => month.exceedsLimit && month.originalApprovers.includes('영업지원팀'))
   return (
-    <Card>
+    <Card className="@container">
       <CardTitle aside={<ProvenanceBadge code="CALCULATED" />}>이 그룹의 월별 합산</CardTitle>
       {bypassed.length > 0 && (
         <div className="mb-3">
@@ -271,8 +288,8 @@ export function HistoryCard({ history, currentPeriod }: { history: HistoryMonth[
               />
               <div className="absolute -top-1 h-4 w-0.5 bg-ink" style={{ left: `${(month.limitKrw / max) * 100}%` }} />
             </div>
-            <span className="num w-24 shrink-0 text-right font-semibold">{won(month.totalKrw)}</span>
-            <span className="w-24 shrink-0 text-right text-xs text-ink-mute">
+            <span className="num w-[5.5rem] shrink-0 whitespace-nowrap text-right font-semibold">{won(month.totalKrw)}</span>
+            <span className="hidden w-24 shrink-0 whitespace-nowrap text-right text-xs text-ink-mute @sm:inline">
               {month.originalApprovers.length > 0 ? `${month.originalApprovers.join(', ')} 승인` : '이번 정산'}
             </span>
           </div>
