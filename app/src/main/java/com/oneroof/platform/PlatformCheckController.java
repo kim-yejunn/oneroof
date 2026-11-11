@@ -14,7 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Deployment smoke-test endpoints. Replaced by the real application screens later. */
+/** Deployment checks: the health probe target and how the platform database is wired. */
+@io.swagger.v3.oas.annotations.tags.Tag(name = "플랫폼", description = "배포 점검용")
 @RestController
 public class PlatformCheckController {
 

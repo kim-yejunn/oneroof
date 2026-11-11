@@ -95,6 +95,39 @@ class ConsoleApiTests {
 			.contains("REVIEW_OPENED", "APPROVAL_GRANTED", "PAYMENT_SENT", "PAYMENT_CONFIRMED", "REVIEW_PAID");
 	}
 
+	@Test
+	void publishesTheApiContractAsOpenApi() throws Exception {
+		String docs = get("/v3/api-docs").body();
+
+		assertThat(JsonPath.<String>read(docs, "$.info.title")).isEqualTo("OneRoof API");
+		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.paths").keySet()).contains("/api/session",
+				"/api/periods", "/api/reviews", "/api/reviews/{id}", "/api/approvals/pending", "/api/payments",
+				"/api/audit", "/api/related-parties", "/api/settlements", "/api/approvals/{id}/decision",
+				"/api/approvals/decisions", "/api/payments/{id}/bank-reply", "/api/payments/bank-replies");
+		assertThat(JsonPath.<List<String>>read(docs, "$.paths['/api/settlements'].post.parameters[*].name"))
+			.containsExactly("X-Oneroof-Role");
+		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.components.schemas").keySet())
+			.contains("ReviewDetailView", "PeriodView", "ApiErrorResponse", "SettlementRequest");
+		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.paths['/api/approvals/{id}/decision'].post.responses")
+			.keySet()).contains("200", "403", "409");
+		assertThat(get("/swagger-ui/index.html").statusCode()).isEqualTo(200);
+	}
+
+	@Test
+	void rejectsMalformedCommandsWithAReadableError() throws Exception {
+		HttpResponse<String> badPeriod = post("/api/settlements", "SALES_SUPPORT", "{\"period\":\"June\"}");
+		assertThat(badPeriod.statusCode()).isEqualTo(400);
+		assertThat(JsonPath.<String>read(badPeriod.body(), "$.code")).isEqualTo("REQUEST");
+
+		HttpResponse<String> unknownRole = post("/api/settlements", "AUDITOR", "{\"period\":\"2026-05\"}");
+		assertThat(unknownRole.statusCode()).isEqualTo(400);
+		assertThat(JsonPath.<String>read(unknownRole.body(), "$.message")).contains("AUDITOR");
+
+		HttpResponse<String> missing = get("/api/reviews/999999");
+		assertThat(missing.statusCode()).isEqualTo(404);
+		assertThat(JsonPath.<String>read(missing.body(), "$.code")).isEqualTo("NOT_FOUND");
+	}
+
 	private HttpResponse<String> get(String path) throws Exception {
 		return this.http.send(HttpRequest.newBuilder(uri(path)).GET().build(), HttpResponse.BodyHandlers.ofString());
 	}
