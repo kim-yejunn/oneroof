@@ -58,6 +58,11 @@ class OverdueOffsetPolicy {
 		return Optional.of(new Proposal(offset, overdueKrw, basis));
 	}
 
+	/** What the rule would offset on the original aging report alone, for a stable with/without comparison. */
+	long originalOffsetFor(String agencyId, long amountKrw) {
+		return Math.min(amountKrw, this.ledger.originalOverdueBeyond(agencyId, this.overdueDaysOver));
+	}
+
 	/**
 	 * @param offsetKrw the amount to set off: the rebate or the overdue balance, whichever is smaller
 	 * @param overdueKrw the agency's balance overdue beyond the threshold

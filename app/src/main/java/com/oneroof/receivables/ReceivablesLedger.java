@@ -41,6 +41,15 @@ public class ReceivablesLedger {
 		return openItems(agencyId).stream().filter((item) -> item.agingDays() > daysOver).toList();
 	}
 
+	/** The agency's balance overdue beyond the given days on the aging report itself, before any adjustment. */
+	public long originalOverdueBeyond(String agencyId, int daysOver) {
+		return this.receivables.findByAgencyIdOrderByAgingDaysDescArIdAsc(agencyId)
+			.stream()
+			.filter((row) -> row.getAgingDays() > daysOver)
+			.mapToLong((row) -> row.getOutstanding().krw())
+			.sum();
+	}
+
 	/** Why a reported deposit cannot be applied, if it cannot. */
 	public Optional<String> problemWithDeposit(String agencyId, long amountKrw) {
 		if (amountKrw <= 0) {

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Banknote, ClipboardCheck, Inbox, Network, ScrollText, ShieldAlert } from 'lucide-react'
+import { Banknote, ClipboardCheck, Inbox, Landmark, Network, ScrollText, ShieldAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { get } from './api.ts'
@@ -8,17 +8,19 @@ import { ProvenanceBadge, won } from './ui.tsx'
 import { AuditLog } from './views/AuditLog.tsx'
 import { Exceptions } from './views/Exceptions.tsx'
 import { Payments } from './views/Payments.tsx'
+import { Receivables } from './views/Receivables.tsx'
 import { RelatedParties } from './views/RelatedParties.tsx'
 import { Settlements } from './views/Settlements.tsx'
 import { Workbench } from './views/Workbench.tsx'
 
-type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'exceptions' | 'audit'
+type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'receivables' | 'exceptions' | 'audit'
 
 const NAV: { view: View; label: string; icon: LucideIcon }[] = [
   { view: 'workbench', label: '처리할 일', icon: Inbox },
   { view: 'settlements', label: '정산 현황', icon: ClipboardCheck },
   { view: 'related', label: '관련자', icon: Network },
   { view: 'payments', label: '지급', icon: Banknote },
+  { view: 'receivables', label: '채권·상계', icon: Landmark },
   { view: 'exceptions', label: '변경·예외', icon: ShieldAlert },
   { view: 'audit', label: '감사 로그', icon: ScrollText },
 ]
@@ -28,7 +30,7 @@ const ROLE_KEY = 'oneroof.role'
 function storedRole(): RoleCode {
   try {
     const value = window.localStorage.getItem(ROLE_KEY)
-    return value === 'SALES_EXECUTIVE' ? 'SALES_EXECUTIVE' : 'SALES_SUPPORT'
+    return value === 'SALES_EXECUTIVE' || value === 'FINANCE' ? value : 'SALES_SUPPORT'
   } catch {
     return 'SALES_SUPPORT'
   }
@@ -47,6 +49,10 @@ export default function App() {
     queryFn: () => get<Payment[]>('/payments?status=SENT'),
   })
 
+  const { data: offsetReviews = [] } = useQuery({
+    queryKey: ['payments', 'OFFSET_REVIEW'],
+    queryFn: () => get<Payment[]>('/payments?status=OFFSET_REVIEW'),
+  })
   const { data: openClarifications = [] } = useQuery({
     queryKey: ['clarifications', 'SENT'],
     queryFn: () => get<Clarification[]>('/clarifications?status=SENT'),
@@ -63,7 +69,9 @@ export default function App() {
   const counts: Partial<Record<View, number>> = {
     workbench: pending.length,
     payments: waiting.length,
-    exceptions: openClarifications.length,
+    receivables: offsetReviews.length,
+    // Offset notices stay open only so the agency can object; they are not work waiting on anyone.
+    exceptions: openClarifications.filter((item) => item.kind !== 'OFFSET_NOTICE').length,
   }
 
   return (
@@ -127,6 +135,7 @@ export default function App() {
           {view === 'settlements' && <Settlements role={role} />}
           {view === 'related' && <RelatedParties />}
           {view === 'payments' && <Payments role={role} />}
+          {view === 'receivables' && <Receivables role={role} />}
           {view === 'exceptions' && <Exceptions role={role} />}
           {view === 'audit' && <AuditLog />}
         </main>

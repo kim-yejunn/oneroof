@@ -247,12 +247,15 @@ class QueryController implements ConsoleQueryApi {
 					: "OFFSET_REVIEW".equals(claim.paymentStatus()) ? claim.offsetKrw() : settled;
 			String basis = claim.offsetBasis() != null ? claim.offsetBasis() : preview.basis();
 			lines.add(new OffsetComparisonView.Line(claim.rebateId(), claim.agencyId(), claim.agencyName(),
-					claim.amountKrw(), proposed, preview.overdueKrw(), claim.paymentStatus(), settled, basis));
+					claim.amountKrw(), preview.originalOffsetKrw(), proposed, preview.overdueKrw(), claim.paymentStatus(),
+					settled, basis));
 		}
 		long total = lines.stream().mapToLong(OffsetComparisonView.Line::amountKrw).sum();
 		long proposed = lines.stream().mapToLong(OffsetComparisonView.Line::proposedOffsetKrw).sum();
+		long original = lines.stream().mapToLong(OffsetComparisonView.Line::originalOffsetKrw).sum();
 		return new OffsetComparisonView(period, settings.enabled(), settings.overdueDaysOver(), lines.size(), total,
-				proposed, total - proposed, (int) lines.stream().filter((line) -> line.proposedOffsetKrw() > 0).count(),
+				original, total - original,
+				(int) lines.stream().filter((line) -> line.originalOffsetKrw() > 0).count(), proposed, total - proposed, (int) lines.stream().filter((line) -> line.proposedOffsetKrw() > 0).count(),
 				lines.stream().mapToLong(OffsetComparisonView.Line::settledOffsetKrw).sum(),
 				lines.stream()
 					.filter((line) -> line.proposedOffsetKrw() > 0)

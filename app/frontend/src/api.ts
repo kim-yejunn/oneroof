@@ -1,4 +1,4 @@
-export type RoleCode = 'SALES_SUPPORT' | 'SALES_EXECUTIVE'
+export type RoleCode = 'SALES_SUPPORT' | 'SALES_EXECUTIVE' | 'FINANCE'
 export type ProvenanceCode = 'ORIGINAL' | 'DEPARTMENT_CLAIM' | 'ASSUMPTION' | 'MOCK_REPLY' | 'CALCULATED'
 
 export interface Session {
@@ -140,8 +140,14 @@ export interface ApprovalHistory {
   decisionComment: string | null
 }
 
-export type ClarificationKind = 'RELATION_EXPLANATION' | 'ACCOUNT_CONFIRMATION'
-export type ClarificationOutcome = 'EXPLAINED' | 'ACCOUNT_CONFIRMED' | 'ACCOUNT_CHANGED' | 'NO_REPLY'
+export type ClarificationKind = 'RELATION_EXPLANATION' | 'ACCOUNT_CONFIRMATION' | 'OFFSET_NOTICE'
+export type ClarificationOutcome =
+  | 'EXPLAINED'
+  | 'ACCOUNT_CONFIRMED'
+  | 'ACCOUNT_CHANGED'
+  | 'OFFSET_ACCEPTED'
+  | 'OFFSET_DISPUTED'
+  | 'NO_REPLY'
 
 export interface Clarification {
   id: number
@@ -247,6 +253,68 @@ export interface Payment {
   holdReason: string | null
   clarificationId: number | null
   clarificationStatus: string | null
+  offsetKrw: number
+  netKrw: number
+  offsetBasis: string | null
+  offsetRound: number
+  offsetDecision: string | null
+}
+
+export interface ReceivableAgency {
+  agencyId: string
+  agencyName: string
+  itemCount: number
+  originalOutstandingKrw: number
+  offsetKrw: number
+  depositKrw: number
+  outstandingKrw: number
+  overdueKrw: number
+  overdueBeyondKrw: number
+  maxAgingDays: number
+}
+
+export interface ReceivableItem {
+  arId: string
+  agencyId: string
+  invoiceDate: string
+  dueDate: string
+  amountKrw: number
+  originalOutstandingKrw: number
+  offsetKrw: number
+  depositKrw: number
+  outstandingKrw: number
+  agingDays: number
+  sourceRef: string
+}
+
+export interface OffsetComparisonLine {
+  rebateId: string
+  agencyId: string
+  agencyName: string
+  amountKrw: number
+  originalOffsetKrw: number
+  proposedOffsetKrw: number
+  overdueBeyondKrw: number
+  paymentStatus: string | null
+  settledOffsetKrw: number
+  basis: string | null
+}
+
+export interface OffsetComparison {
+  period: string
+  enabled: boolean
+  overdueDaysOver: number
+  claimCount: number
+  totalKrw: number
+  originalOffsetKrw: number
+  originalCashKrw: number
+  originalOffsetAgencyCount: number
+  proposedOffsetKrw: number
+  proposedCashKrw: number
+  offsetAgencyCount: number
+  settledOffsetKrw: number
+  overdueBeyondKrw: number
+  lines: OffsetComparisonLine[]
 }
 
 export interface RelatedParties {

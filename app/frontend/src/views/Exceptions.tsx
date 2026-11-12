@@ -224,6 +224,7 @@ function ClarificationsCard() {
 const SAMPLE_REPLY: Record<string, string> = {
   RELATION_EXPLANATION: '세 법인은 대표가 같은 별도 법인으로 성남 사무실을 함께 임차함. 임대차계약서·법인등기부 첨부',
   ACCOUNT_CONFIRMATION: '등록된 정산계좌가 맞음. 다른 계좌 입금은 대표자 개인 계좌로 대납한 것',
+  OFFSET_NOTICE: '5월 반품 2건(1,200,000원) 정산이 미수금에 반영되지 않음. 반품 확인서 첨부',
 }
 
 export function ClarificationItem({ item, compact = false }: { item: Clarification; compact?: boolean }) {
@@ -235,7 +236,7 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
     mutationFn: (outcome: ClarificationOutcome) =>
       post(`/clarifications/${item.id}/reply`, 'SALES_SUPPORT', {
         outcome,
-        replyText: outcome === 'NO_REPLY' ? '' : text,
+        replyText: outcome === 'NO_REPLY' || outcome === 'OFFSET_ACCEPTED' ? '' : text,
         replyAccount: outcome === 'ACCOUNT_CHANGED' ? account : null,
       }),
     onSuccess: () => void queryClient.invalidateQueries(),
@@ -286,7 +287,16 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
             />
           )}
           <div className="flex flex-wrap gap-1.5">
-            {item.kind === 'RELATION_EXPLANATION' ? (
+            {item.kind === 'OFFSET_NOTICE' ? (
+              <>
+                <Button size="sm" kind="secondary" disabled={reply.isPending} onClick={() => reply.mutate('OFFSET_ACCEPTED')}>
+                  상계 수용
+                </Button>
+                <Button size="sm" kind="secondary" disabled={reply.isPending || !text} onClick={() => reply.mutate('OFFSET_DISPUTED')}>
+                  이의 제기
+                </Button>
+              </>
+            ) : item.kind === 'RELATION_EXPLANATION' ? (
               <Button size="sm" kind="secondary" disabled={reply.isPending || !text} onClick={() => reply.mutate('EXPLAINED')}>
                 소명 제출
               </Button>
@@ -301,7 +311,7 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
               </>
             )}
             <Button size="sm" kind="danger" disabled={reply.isPending} onClick={() => reply.mutate('NO_REPLY')}>
-              기한 경과(무응답)
+              {item.kind === 'OFFSET_NOTICE' ? '기한 경과(이의 없음)' : '기한 경과(무응답)'}
             </Button>
           </div>
           {reply.error && <Notice tone="error">{reply.error.message}</Notice>}

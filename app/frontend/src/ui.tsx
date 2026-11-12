@@ -68,6 +68,9 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   ANSWERED: { label: '회신 받음', tone: 'green' },
   EXPIRED: { label: '기한 경과', tone: 'red' },
   OPEN: { label: '감사 중', tone: 'red' },
+  OFFSET_REVIEW: { label: '상계 검토', tone: 'orange' },
+  OFFSET_SETTLED: { label: '상계 완료', tone: 'green' },
+  OFFSET_DISPUTED: { label: '상계 이의', tone: 'violet' },
 }
 
 export const KIND_LABEL: Record<string, string> = {
@@ -76,12 +79,15 @@ export const KIND_LABEL: Record<string, string> = {
   BANK_ACCOUNT: '정산계좌',
   RELATION_EXPLANATION: '관계 소명',
   ACCOUNT_CONFIRMATION: '지급 계좌 확인',
+  OFFSET_NOTICE: '상계 통지',
 }
 
 export const OUTCOME_LABEL: Record<string, string> = {
   EXPLAINED: '소명 제출',
   ACCOUNT_CONFIRMED: '등록 계좌 확인',
   ACCOUNT_CHANGED: '계좌 변경 회신',
+  OFFSET_ACCEPTED: '상계 수용',
+  OFFSET_DISPUTED: '상계 이의',
   NO_REPLY: '기한 내 무응답',
 }
 
@@ -157,6 +163,7 @@ export function Empty({ children }: { children: ReactNode }) {
 export const ROLE_LABEL: Record<string, string> = {
   SALES_SUPPORT: '영업지원팀',
   SALES_EXECUTIVE: '영업임원',
+  FINANCE: '회계·자금팀',
   SYSTEM: '시스템',
   'EXTERNAL:BANK': '은행(모의)',
   'EXTERNAL:AGENCY': '대리점(모의)',
@@ -200,4 +207,17 @@ export const ACTION_LABEL: Record<string, string> = {
   FINDING_OPENED: '소급 발견',
   FINDING_CONFIRMED: '사후 확인',
   DECISION_IGNORED: '결정 무시',
+  OFFSET_PROPOSED: '상계 상신',
+  OFFSET_SETTLED: '상계 결정',
+  OFFSET_WAIVED: '전액 지급 결정',
+  OFFSET_DROPPED: '상계 철회',
+  OFFSET_REVISED: '상계액 갱신',
+  OFFSET_DISPUTED: '상계 이의',
+  OFFSET_UPHELD: '상계 유지',
+  OFFSET_CANCELLED: '상계 취소',
+  OFFSET_CONFIRMED: '상계 확정',
+  OFFSET_DECISION_IGNORED: '상계 결정 무시',
+  RECEIVABLE_OFFSET: '미수금 상계',
+  RECEIVABLE_OFFSET_REVERSED: '미수금 되살림',
+  RECEIVABLE_DEPOSIT: '입금 반영',
 }

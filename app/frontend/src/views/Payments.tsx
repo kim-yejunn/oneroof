@@ -16,6 +16,7 @@ export function Payments({ role }: { role: RoleCode }) {
   })
   const waiting = payments.filter((payment) => payment.status === 'SENT')
   const held = payments.filter((payment) => payment.status === 'HELD')
+  const offsetReview = payments.filter((payment) => payment.status === 'OFFSET_REVIEW' || payment.status === 'OFFSET_DISPUTED')
   const error = replyAll.error ?? reply.error
 
   return (
@@ -37,6 +38,14 @@ export function Payments({ role }: { role: RoleCode }) {
           </Button>
         </div>
         {error && <div className="mt-3"><Notice tone="error">{error.message}</Notice></div>}
+        {offsetReview.length > 0 && (
+          <div className="mt-3">
+            <Notice tone="info">
+              상계 검토 {offsetReview.length}건: 90일 넘게 연체된 대리점이라 회계·자금팀이 상계 여부를 정할 때까지 은행으로 보내지
+              않습니다(교육용 가정). 회계·자금팀 역할의 처리할 일에서 결정합니다.
+            </Notice>
+          </div>
+        )}
         {held.length > 0 && (
           <div className="mt-3">
             <Notice tone="warn">
@@ -58,7 +67,9 @@ export function Payments({ role }: { role: RoleCode }) {
                 <th className="py-2 font-medium">지시</th>
                 <th className="py-2 font-medium">대리점</th>
                 <th className="py-2 font-medium">장려금</th>
-                <th className="py-2 text-right font-medium">금액</th>
+                <th className="py-2 text-right font-medium">장려금</th>
+                <th className="py-2 text-right font-medium">상계</th>
+                <th className="py-2 text-right font-medium">현금 지급</th>
                 <th className="py-2 pl-4 font-medium">상태</th>
                 <th className="py-2 font-medium">지급 계좌</th>
                 <th className="py-2 font-medium">전송 접수번호</th>
@@ -77,7 +88,12 @@ export function Payments({ role }: { role: RoleCode }) {
                   <td className="py-2.5 text-ink-soft">
                     {payment.referenceId} <Badge tone="gray">{payment.period}</Badge>
                   </td>
-                  <td className="num py-2.5 text-right font-semibold">{won(payment.amountKrw)}</td>
+                  <td className="num py-2.5 text-right text-ink-soft">{won(payment.amountKrw)}</td>
+                  <td className="num py-2.5 text-right text-brand-strong" title={payment.offsetBasis ?? undefined}>
+                    {payment.offsetKrw > 0 ? `−${won(payment.offsetKrw)}` : '—'}
+                    {payment.status === 'OFFSET_REVIEW' && payment.offsetKrw > 0 && <div className="text-[11px] text-ink-mute">제안</div>}
+                  </td>
+                  <td className="num py-2.5 text-right font-semibold">{won(payment.netKrw)}</td>
                   <td className="py-2.5 pl-4" title={payment.holdReason ?? undefined}>
                     <StatusBadge status={payment.status} />
                     {payment.holdReason && (

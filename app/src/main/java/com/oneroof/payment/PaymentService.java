@@ -430,8 +430,9 @@ public class PaymentService {
 	public OffsetPreview previewOffset(String agencyId, long amountKrw) {
 		return this.offsetPolicy.proposalFor(agencyId, amountKrw)
 			.map((proposal) -> new OffsetPreview(agencyId, amountKrw, proposal.offsetKrw(), proposal.overdueKrw(),
-					proposal.basis()))
-			.orElse(new OffsetPreview(agencyId, amountKrw, 0, 0, null));
+					proposal.basis(), this.offsetPolicy.originalOffsetFor(agencyId, amountKrw)))
+			.orElse(new OffsetPreview(agencyId, amountKrw, 0, 0, null,
+					this.offsetPolicy.originalOffsetFor(agencyId, amountKrw)));
 	}
 
 	private void routeToPayee(PaymentInstruction instruction, LocalDate today, List<Deposit> deposits,
@@ -522,8 +523,10 @@ public class PaymentService {
 	 * @param offsetKrw what would be set off now
 	 * @param overdueKrw the agency's balance overdue beyond the threshold now
 	 * @param basis the invoices behind it, {@code null} when nothing would be offset
+	 * @param originalOffsetKrw what would be offset on the original aging report, before any deposit or offset
 	 */
-	public record OffsetPreview(String agencyId, long amountKrw, long offsetKrw, long overdueKrw, String basis) {
+	public record OffsetPreview(String agencyId, long amountKrw, long offsetKrw, long overdueKrw, String basis,
+			long originalOffsetKrw) {
 	}
 
 	/** What one batch step produced, published as one event per kind. */

@@ -69,6 +69,7 @@ class OffsetFlowTests {
 		assertThat(JsonPath.<Number>read(comparison, "$.proposedOffsetKrw").longValue()).isEqualTo(20_806_770L);
 		assertThat(JsonPath.<Number>read(comparison, "$.proposedCashKrw").longValue()).isEqualTo(16_353_042L);
 		assertThat(JsonPath.<Integer>read(comparison, "$.offsetAgencyCount")).isEqualTo(21);
+		assertThat(JsonPath.<Number>read(comparison, "$.originalOffsetKrw").longValue()).isEqualTo(20_806_770L);
 
 		// 1. The sales support team clears its 37 routine reviews. 18 of those agencies are more than
 		// 90 days overdue: nothing is paid to them until finance decides; the other 19 go to the bank.
@@ -161,6 +162,11 @@ class OffsetFlowTests {
 		await().atMost(Duration.ofSeconds(30))
 			.untilAsserted(() -> assertThat(count("audit_log WHERE action = 'OFFSET_CONFIRMED'")).isEqualTo(1));
 		assertThat(instruction("D-002", "status")).isEqualTo("OFFSET_SETTLED");
+
+		// The original-basis comparison does not move; what finance actually set off does.
+		String after = get("/api/offsets/comparison?period=2026-06");
+		assertThat(JsonPath.<Number>read(after, "$.originalOffsetKrw").longValue()).isEqualTo(20_806_770L);
+		assertThat(JsonPath.<Number>read(after, "$.settledOffsetKrw").longValue()).isEqualTo(15_614_444L - 547_490L);
 
 		await().atMost(Duration.ofSeconds(30))
 			.untilAsserted(() -> assertThat(count("event_publication WHERE completion_date IS NULL")).isZero());

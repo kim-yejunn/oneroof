@@ -4,6 +4,7 @@ import { get, post } from '../api.ts'
 import type { PendingApproval, Period, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ROLE_LABEL, won } from '../ui.tsx'
 import { FindingDecision } from './FindingDecision.tsx'
+import { OffsetDecision } from './OffsetDecision.tsx'
 import { ReviewDetail } from './ReviewDetail.tsx'
 
 /** The role's to-do list on the left, the selected item's decision screen on the right. */
@@ -29,7 +30,12 @@ export function Workbench({ role }: { role: RoleCode }) {
   })
 
   const unsubmitted = periods.filter((period) => period.pendingCount > 0 && !period.batchOpened)
-  const routine = pending.filter((item) => item.exceedsLimit === false)
+  const routine = pending.filter((item) => item.subjectType === 'RebateReview' && item.exceedsLimit === false)
+  const offsets = pending.filter((item) => item.subjectType === 'OffsetProposal' && !item.title.startsWith('[이의'))
+  const decideOffsets = useMutation({
+    mutationFn: (ids: number[]) => post('/approvals/decisions', role, { ids, approved: true, comment: '계약 조항에 따라 상계' }),
+    onSuccess: () => void queryClient.invalidateQueries(),
+  })
 
   return (
     <div className="grid h-full grid-cols-[300px_minmax(0,1fr)] gap-4 2xl:grid-cols-[340px_minmax(0,1fr)]">
@@ -60,14 +66,25 @@ export function Workbench({ role }: { role: RoleCode }) {
           {routine.length > 1 && (
             <Button
               kind="secondary"
-              className="mb-3 w-full"
+              className="mb-3 w-full shrink-0"
               disabled={approveRoutine.isPending}
               onClick={() => approveRoutine.mutate(routine.map((item) => item.id))}
             >
               한도 이내 {routine.length}건 일괄 승인
             </Button>
           )}
+          {offsets.length > 1 && (
+            <Button
+              kind="secondary"
+              className="mb-3 w-full shrink-0"
+              disabled={decideOffsets.isPending}
+              onClick={() => decideOffsets.mutate(offsets.map((item) => item.id))}
+            >
+              상계 제안 {offsets.length}건 일괄 결정
+            </Button>
+          )}
           {approveRoutine.error && <div className="mb-3"><Notice tone="error">{approveRoutine.error.message}</Notice></div>}
+          {decideOffsets.error && <div className="mb-3"><Notice tone="error">{decideOffsets.error.message}</Notice></div>}
           {pending.length === 0 ? (
             <Empty>대기 중인 승인 요청이 없습니다.</Empty>
           ) : (
@@ -75,10 +92,14 @@ export function Workbench({ role }: { role: RoleCode }) {
               {pending.map((item) => {
                 const active = item.id === selected?.id
                 const finding = item.subjectType === 'RetrospectiveFinding'
+                const offset = item.subjectType === 'OffsetProposal'
+                const disputed = offset && item.title.startsWith('[이의')
                 const resubmitted = item.title.startsWith('[재상신')
                 const label = finding
                   ? `${item.period} ${item.title.match(/RPG-D-\d+/)?.[0] ?? ''}`
-                  : item.title.replace(/^.*— /, '').replace(/ [\d,]+원$/, '')
+                  : offset
+                    ? item.title.replace(/^\[[^\]]*\] /, '').replace(/ 판매장려금.*$/, ' 미수금 상계')
+                    : item.title.replace(/^.*— /, '').replace(/ [\d,]+원$/, '')
                 return (
                   <li key={item.id}>
                     <button
@@ -87,7 +108,9 @@ export function Workbench({ role }: { role: RoleCode }) {
                       className={`flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors ${active ? 'bg-brand-soft' : 'hover:bg-fill'}`}
                     >
                       <span className="flex flex-wrap items-center gap-1.5">
-                        {finding ? (
+                        {offset ? (
+                          <Badge tone={disputed ? 'violet' : 'orange'}>{disputed ? '상계 이의' : '상계 검토'}</Badge>
+                        ) : finding ? (
                           <Badge tone="orange">사후 확인</Badge>
                         ) : item.exceedsLimit ? (
                           <Badge tone="red">한도 초과</Badge>
@@ -111,7 +134,9 @@ export function Workbench({ role }: { role: RoleCode }) {
       </div>
 
       <div className="min-h-0 overflow-y-auto pb-6">
-        {selected?.subjectType === 'RetrospectiveFinding' ? (
+        {selected?.subjectType === 'OffsetProposal' ? (
+          <OffsetDecision key={selected.id} request={selected} role={role} />
+        ) : selected?.subjectType === 'RetrospectiveFinding' ? (
           <FindingDecision findingId={Number(selected.subjectId)} role={role} />
         ) : selected ? (
           <ReviewDetail reviewId={Number(selected.subjectId)} role={role} />
