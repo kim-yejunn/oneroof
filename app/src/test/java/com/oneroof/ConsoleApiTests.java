@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 
 /** The console's HTTP surface over the original data: what it shows and what it lets each role do. */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = "oneroof.offset.enabled=false")
 @Import(TestcontainersConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class ConsoleApiTests {
@@ -117,7 +117,8 @@ class ConsoleApiTests {
 				"/api/audit", "/api/related-parties", "/api/settlements", "/api/approvals/{id}/decision",
 				"/api/approvals/decisions", "/api/payments/{id}/bank-reply", "/api/payments/bank-replies",
 				"/api/master-changes", "/api/clarifications", "/api/clarifications/{id}/reply", "/api/findings",
-				"/api/audit-referrals", "/api/agencies/{id}/identities");
+				"/api/audit-referrals", "/api/agencies/{id}/identities", "/api/receivables",
+				"/api/agencies/{id}/receivables", "/api/agencies/{id}/deposits", "/api/offsets/comparison");
 		assertThat(JsonPath.<List<String>>read(docs, "$.paths['/api/settlements'].post.parameters[*].name"))
 			.containsExactly("X-Oneroof-Role");
 		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.components.schemas").keySet())
@@ -142,6 +143,11 @@ class ConsoleApiTests {
 						+ "\"effectiveFrom\":\"2026-01-01\",\"reason\":\"x\"}");
 		assertThat(sameValue.statusCode()).isEqualTo(400);
 		assertThat(JsonPath.<String>read(sameValue.body(), "$.message")).contains("같은 값");
+
+		HttpResponse<String> overpaid = post("/api/agencies/D-001/deposits", "FINANCE",
+				"{\"amountKrw\":999999999,\"bankAccount\":\"기업 198-22-851114\"}");
+		assertThat(overpaid.statusCode()).isEqualTo(400);
+		assertThat(JsonPath.<String>read(overpaid.body(), "$.message")).contains("남은 미수금");
 
 		HttpResponse<String> missing = get("/api/reviews/999999");
 		assertThat(missing.statusCode()).isEqualTo(404);

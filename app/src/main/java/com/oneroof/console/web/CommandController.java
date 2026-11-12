@@ -12,6 +12,7 @@ import com.oneroof.console.api.Commands.BankReplyRequest;
 import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
 import com.oneroof.console.api.Commands.ClarificationReplyRequest;
+import com.oneroof.console.api.Commands.DepositRequest;
 import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
@@ -23,6 +24,7 @@ import com.oneroof.intake.PaymentResultsReceived;
 import com.oneroof.intake.Receipt;
 import com.oneroof.masterdata.MasterCorrectionService;
 import com.oneroof.payment.PaymentService;
+import com.oneroof.receivables.ReceivablesLedger;
 import com.oneroof.shared.Role;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,9 +37,12 @@ class CommandController implements ConsoleCommandApi {
 	private final PaymentService payments;
 	private final MasterCorrectionService masterCorrections;
 	private final ClarificationService clarifications;
+	private final ReceivablesLedger receivables;
 
 	CommandController(IntakeService intake, ApprovalService approvals, PaymentService payments,
-			MasterCorrectionService masterCorrections, ClarificationService clarifications) {
+			MasterCorrectionService masterCorrections, ClarificationService clarifications,
+			ReceivablesLedger receivables) {
+		this.receivables = receivables;
 		this.intake = intake;
 		this.approvals = approvals;
 		this.payments = payments;
@@ -63,10 +68,23 @@ class CommandController implements ConsoleCommandApi {
 				request.newValue().trim(), request.effectiveFrom(), request.reason(), actor.name()));
 	}
 
+	/** The event id is derived from the content, so entering the same deposit twice is harmless. */
+	@Override
+	public ReceiptView reportDeposit(String role, String id, DepositRequest request) {
+		Role actor = actor(role);
+		this.receivables.problemWithDeposit(id, request.amountKrw()).ifPresent((problem) -> {
+			throw new IllegalArgumentException(problem);
+		});
+		String eventId = "EVT-DEPOSIT-%s-%d-%08x".formatted(id, request.amountKrw(),
+				request.bankAccount().trim().hashCode());
+		return receipt(this.intake.receiveAgencyDeposit(eventId, id, request.amountKrw(), request.bankAccount().trim(),
+				actor.name()));
+	}
+
 	/** One reply per request: the event id is the request's, so a second reply is acknowledged and ignored. */
 	@Override
 	public ReceiptView replyToClarification(long id, ClarificationReplyRequest request) {
-		this.clarifications.problemWith(id, request.outcome(), request.replyAccount()).ifPresent((problem) -> {
+		this.clarifications.problemWith(id, request.outcome(), request.replyText(), request.replyAccount()).ifPresent((problem) -> {
 			throw new IllegalArgumentException(problem);
 		});
 		return receipt(this.intake.receiveClarificationReply("EVT-CLARIFY-" + id, id, request.outcome(),

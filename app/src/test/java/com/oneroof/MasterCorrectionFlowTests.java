@@ -34,7 +34,7 @@ import org.springframework.test.annotation.DirtiesContext;
  * replaced by a group review for the executive, and the months already settled under the sales
  * support team's authority that the group exceeded become retrospective findings.
  */
-@SpringBootTest
+@SpringBootTest(properties = "oneroof.offset.enabled=false")
 @Import(TestcontainersConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class MasterCorrectionFlowTests {

@@ -15,6 +15,8 @@ interface PaymentInstructionRepository extends JpaRepository<PaymentInstruction,
 
 	List<PaymentInstruction> findByStatusOrderByIdAsc(PaymentStatus status);
 
+	List<PaymentInstruction> findByAgencyIdAndStatusInOrderByIdAsc(String agencyId, Collection<PaymentStatus> statuses);
+
 	/** Whether this account was already confirmed for the agency by releasing an earlier hold. */
 	boolean existsByAgencyIdAndPayeeAccountAndHoldReasonIsNotNullAndStatusIn(String agencyId, String payeeAccount,
 			Collection<PaymentStatus> statuses);

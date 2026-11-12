@@ -50,6 +50,22 @@ public class PaymentInstruction {
 	@Column(name = "hold_reason")
 	private String holdReason;
 
+	/** Part of the amount set off against the agency's overdue receivables; the rest goes to the bank. */
+	@Column(name = "offset_krw", nullable = false)
+	private long offsetKrw;
+
+	/** The overdue invoices the offset rests on, as shown to finance. */
+	@Column(name = "offset_basis")
+	private String offsetBasis;
+
+	/** 0 without an offset, 1 for finance's first decision, 2 after the agency disputed. */
+	@Column(name = "offset_round", nullable = false)
+	private int offsetRound;
+
+	/** What finance decided and why, in words. */
+	@Column(name = "offset_decision")
+	private String offsetDecision;
+
 	@Column(name = "requested_on", nullable = false)
 	private LocalDate requestedOn;
 
@@ -77,6 +93,77 @@ public class PaymentInstruction {
 		this.status = holdReason == null ? PaymentStatus.REQUESTED : PaymentStatus.HELD;
 		this.requestedOn = requestedOn;
 		this.correlationId = requested.correlationId();
+	}
+
+	/** An instruction for an agency with long-overdue receivables: finance decides on the offset before anything else. */
+	PaymentInstruction(PaymentsRequested.Payment requested, long proposedOffsetKrw, String offsetBasis,
+			LocalDate requestedOn) {
+		this(requested, null, null, requestedOn);
+		this.status = PaymentStatus.OFFSET_REVIEW;
+		this.offsetKrw = proposedOffsetKrw;
+		this.offsetBasis = offsetBasis;
+		this.offsetRound = 1;
+	}
+
+	/** The proposal changed before finance decided, for example because the agency paid in. */
+	void reviseOffset(long proposedOffsetKrw, String offsetBasis) {
+		requireStatus(PaymentStatus.OFFSET_REVIEW);
+		this.offsetKrw = proposedOffsetKrw;
+		this.offsetBasis = offsetBasis;
+	}
+
+	/**
+	 * Finance set the amount off. When it covers the whole amount nothing is left to send; otherwise
+	 * the rest still needs a payee account, see {@link #routeToPayee}.
+	 */
+	void settleOffset(long offsetKrw, String decision) {
+		requireStatus(PaymentStatus.OFFSET_REVIEW);
+		if (offsetKrw <= 0 || offsetKrw > this.amountKrw) {
+			throw new IllegalArgumentException("상계액 %,d원이 지급액 %,d원 범위를 벗어남".formatted(offsetKrw, this.amountKrw));
+		}
+		this.offsetKrw = offsetKrw;
+		this.offsetDecision = decision;
+		if (offsetKrw == this.amountKrw) {
+			this.status = PaymentStatus.OFFSET_SETTLED;
+		}
+	}
+
+	/** Finance chose to pay the whole amount and collect the receivables separately. */
+	void waiveOffset(String decision) {
+		requireStatus(PaymentStatus.OFFSET_REVIEW);
+		this.offsetKrw = 0;
+		this.offsetDecision = decision;
+	}
+
+	/** The agency disputed a full offset; finance looks at it again. */
+	void dispute(String reason) {
+		requireStatus(PaymentStatus.OFFSET_SETTLED);
+		this.status = PaymentStatus.OFFSET_DISPUTED;
+		this.offsetRound = 2;
+		this.offsetDecision = this.offsetDecision + " / 대리점 이의: " + reason;
+	}
+
+	/** Finance kept the offset after the dispute. */
+	void upholdOffset(String decision) {
+		requireStatus(PaymentStatus.OFFSET_DISPUTED);
+		this.status = PaymentStatus.OFFSET_SETTLED;
+		this.offsetDecision = this.offsetDecision + " / " + decision;
+	}
+
+	/** Finance cancelled the offset after the dispute; the whole amount is paid. */
+	void cancelOffset(String decision) {
+		requireStatus(PaymentStatus.OFFSET_DISPUTED);
+		this.offsetKrw = 0;
+		this.status = PaymentStatus.OFFSET_REVIEW;
+		this.offsetDecision = this.offsetDecision + " / " + decision;
+	}
+
+	/** After the offset question is settled, the amount still to pay goes to the bank or waits for the account. */
+	void routeToPayee(String payeeAccount, String holdReason) {
+		requireStatus(PaymentStatus.OFFSET_REVIEW);
+		this.payeeAccount = payeeAccount;
+		this.holdReason = holdReason;
+		this.status = holdReason == null ? PaymentStatus.REQUESTED : PaymentStatus.HELD;
 	}
 
 	/** Lets a held instruction go to the bank, paying the account that was confirmed. */
@@ -129,6 +216,27 @@ public class PaymentInstruction {
 
 	public Money getAmount() {
 		return Money.ofKrw(this.amountKrw);
+	}
+
+	public Money getOffset() {
+		return Money.ofKrw(this.offsetKrw);
+	}
+
+	/** What goes to the bank: the amount owed less the offset. */
+	public Money getNetAmount() {
+		return Money.ofKrw(this.amountKrw - this.offsetKrw);
+	}
+
+	public String getOffsetBasis() {
+		return this.offsetBasis;
+	}
+
+	public int getOffsetRound() {
+		return this.offsetRound;
+	}
+
+	public String getOffsetDecision() {
+		return this.offsetDecision;
 	}
 
 	public PaymentStatus getStatus() {

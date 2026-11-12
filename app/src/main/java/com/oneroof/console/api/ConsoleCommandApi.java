@@ -5,6 +5,7 @@ import com.oneroof.console.api.Commands.BankReplyRequest;
 import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
 import com.oneroof.console.api.Commands.ClarificationReplyRequest;
+import com.oneroof.console.api.Commands.DepositRequest;
 import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
@@ -73,6 +74,17 @@ public interface ConsoleCommandApi {
 	@PostMapping("/payments/bank-replies")
 	BankRepliesResult bankReplies();
 
+	@Operation(summary = "모의 대리점 입금",
+			description = "대리점이 미수금을 입금했다는 은행 통지를 흉내 냅니다. 가장 오래 연체된 미수금부터 줄고, 결정 전 상계 제안은 "
+					+ "새 잔액으로 다시 상신되거나 연체가 해소되면 철회되어 전액 지급됩니다.")
+	@ApiResponse(responseCode = "200", description = "접수 결과")
+	@ApiResponse(responseCode = "400", description = "반영할 수 없는 입금",
+			content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+	@PostMapping("/agencies/{id}/deposits")
+	ReceiptView reportDeposit(@RoleHeader @RequestHeader(ROLE_HEADER) String role,
+			@Parameter(description = "대리점 ID", example = "D-011") @PathVariable String id,
+			@Valid @RequestBody DepositRequest request);
+
 	@Operation(summary = "마스터 정정 신고",
 			description = "대리점의 대표자·주소·정산계좌 정정을 접수합니다. 관련자 그룹이 다시 계산되어 결정 전 검토는 재분류되고, "
 					+ "전결로 처리된 지난달이 임원 승인 대상이었다면 사후 확인 요청이 생깁니다.")
@@ -95,7 +107,7 @@ public interface ConsoleCommandApi {
 	/** Documents the role header once for every command that takes it. */
 	@Parameter(name = ROLE_HEADER, in = ParameterIn.HEADER, required = true,
 			description = "행동하는 역할 (시연용 역할 전환)",
-			schema = @Schema(allowableValues = { "SALES_SUPPORT", "SALES_EXECUTIVE" }, example = "SALES_EXECUTIVE"))
+			schema = @Schema(allowableValues = { "SALES_SUPPORT", "SALES_EXECUTIVE", "FINANCE" }, example = "SALES_EXECUTIVE"))
 	@java.lang.annotation.Target(java.lang.annotation.ElementType.PARAMETER)
 	@java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
 	@interface RoleHeader {

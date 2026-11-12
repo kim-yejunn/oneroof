@@ -5,6 +5,7 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Pattern;
 
 /** Request and response bodies of the commands. */
@@ -32,6 +33,12 @@ public final class Commands {
 	public record BankReplyRequest(@Schema(description = "true 이체 완료, false 이체 실패") boolean succeeded) {
 	}
 
+	@Schema(description = "대리점 입금 모의 통지. 가장 오래 연체된 미수금부터 줄어듭니다.")
+	public record DepositRequest(
+			@Positive @Schema(description = "입금액", example = "10500000") long amountKrw,
+			@NotNull @Schema(description = "입금 계좌", example = "신한 778-02-213907") String bankAccount) {
+	}
+
 	@Schema(description = "대리점 마스터 정정 신고")
 	public record MasterChangeRequest(
 			@NotNull @Schema(example = "D-041") String agencyId,
@@ -43,7 +50,7 @@ public final class Commands {
 
 	@Schema(description = "대리점의 모의 회신. NO_REPLY 는 회신 기한이 지난 것을 흉내 냅니다.")
 	public record ClarificationReplyRequest(
-			@NotNull @Schema(allowableValues = { "EXPLAINED", "ACCOUNT_CONFIRMED", "ACCOUNT_CHANGED", "NO_REPLY" }) String outcome,
+			@NotNull @Schema(allowableValues = { "EXPLAINED", "ACCOUNT_CONFIRMED", "ACCOUNT_CHANGED", "OFFSET_ACCEPTED", "OFFSET_DISPUTED", "NO_REPLY" }) String outcome,
 			@Schema(nullable = true, description = "대리점이 쓴 회신 내용",
 					example = "D-011·D-024 는 같은 대표의 별도 법인으로 사무실을 함께 임차함. 임대차계약서 첨부") String replyText,
 			@Schema(nullable = true, description = "ACCOUNT_CHANGED 일 때 새 지급 계좌", example = "국민 412-27-556310") String replyAccount) {

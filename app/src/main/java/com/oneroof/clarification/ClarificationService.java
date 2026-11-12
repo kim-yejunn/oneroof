@@ -74,7 +74,7 @@ public class ClarificationService {
 			return;
 		}
 		ClarificationRequest request = found.get();
-		Optional<String> problem = problemWith(request.getId(), reply.outcome(), reply.replyAccount());
+		Optional<String> problem = problemWith(request.getId(), reply.outcome(), reply.replyText(), reply.replyAccount());
 		if (problem.isPresent()) {
 			this.auditLog.record(new AuditRecord("EXTERNAL:AGENCY", "CLARIFICATION_REPLY_IGNORED", SUBJECT,
 					String.valueOf(request.getId()), problem.get() + " — 회신을 반영하지 않음", Provenance.MOCK_REPLY,
@@ -102,6 +102,11 @@ public class ClarificationService {
 	 */
 	@Transactional(readOnly = true)
 	public Optional<String> problemWith(long clarificationId, String outcome, String replyAccount) {
+		return problemWith(clarificationId, outcome, null, replyAccount);
+	}
+
+	/** Why the reply cannot be accepted, if it cannot. A dispute has to say what is disputed. */
+	public Optional<String> problemWith(long clarificationId, String outcome, String replyText, String replyAccount) {
 		Optional<ClarificationRequest> found = this.requests.findById(clarificationId);
 		if (found.isEmpty()) {
 			return Optional.of("소명·확인 요청 #%d 이 없음".formatted(clarificationId));
@@ -122,6 +127,9 @@ public class ClarificationService {
 		}
 		if (parsed == ClarificationOutcome.ACCOUNT_CHANGED && (replyAccount == null || replyAccount.isBlank())) {
 			return Optional.of("계좌 변경 회신에는 새 계좌가 있어야 함");
+		}
+		if (parsed == ClarificationOutcome.OFFSET_DISPUTED && (replyText == null || replyText.isBlank())) {
+			return Optional.of("상계 이의에는 이의 사유가 있어야 함");
 		}
 		return Optional.empty();
 	}

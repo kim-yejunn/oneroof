@@ -33,7 +33,7 @@ import org.springframework.test.annotation.DirtiesContext;
  * related group is routed to the sales executive and everything else to the sales support team,
  * approval creates payment instructions, and the bank's reply closes the loop.
  */
-@SpringBootTest
+@SpringBootTest(properties = "oneroof.offset.enabled=false")
 @Import(TestcontainersConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class SettlementFlowTests {

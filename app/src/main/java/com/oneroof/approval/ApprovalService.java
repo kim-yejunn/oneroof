@@ -35,9 +35,23 @@ public class ApprovalService {
 		this.clock = clock;
 	}
 
-	/** Stores a batch of requests in one transaction. */
+	/**
+	 * Stores a batch of requests in one transaction. A request still pending about the same subject
+	 * is replaced: the subject's owner asked again because the figures changed.
+	 */
 	@ApplicationModuleListener
 	void on(ApprovalRequestsSubmitted submitted) {
+		for (ApprovalRequestsSubmitted.Request request : submitted.requests()) {
+			for (ApprovalRequest pending : this.requests.findBySubjectTypeAndSubjectIdOrderByIdAsc(request.subjectType(),
+					request.subjectId())) {
+				if (pending.getStatus() == ApprovalStatus.PENDING) {
+					pending.withdraw("같은 대상에 대한 새 상신으로 대체", this.clock.today());
+					this.auditLog.record(new AuditRecord(Role.SYSTEM.name(), "APPROVAL_WITHDRAWN", SUBJECT,
+							String.valueOf(pending.getId()), "상신 대체: %s".formatted(pending.getTitle()),
+							Provenance.CALCULATED, pending.getCorrelationId()));
+				}
+			}
+		}
 		List<ApprovalRequest> saved = this.requests.saveAll(submitted.requests()
 			.stream()
 			.map((request) -> new ApprovalRequest(request, this.clock.today()))

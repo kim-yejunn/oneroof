@@ -12,6 +12,9 @@ import com.oneroof.console.api.ClarificationView;
 import com.oneroof.console.api.FindingView;
 import com.oneroof.console.api.IdentityView;
 import com.oneroof.console.api.MasterChangeView;
+import com.oneroof.console.api.OffsetComparisonView;
+import com.oneroof.console.api.ReceivableAgencyView;
+import com.oneroof.console.api.ReceivableItemView;
 import com.oneroof.console.api.ReferralView;
 import com.oneroof.console.api.ClaimView;
 import com.oneroof.console.api.ConsoleQueryApi;
@@ -29,6 +32,7 @@ import com.oneroof.console.api.ReviewView;
 import com.oneroof.console.api.SessionView;
 import com.oneroof.console.api.SessionView.CodeLabel;
 import com.oneroof.console.api.SessionView.LimitPolicyView;
+import com.oneroof.payment.PaymentService;
 import com.oneroof.rebate.ExposureUnit;
 import com.oneroof.rebate.RebateClaim;
 import com.oneroof.rebate.RebateExposureService;
@@ -59,9 +63,11 @@ class QueryController implements ConsoleQueryApi {
 	private final RelatedPartyService relatedParties;
 	private final RebateExposureService exposure;
 	private final BusinessClock clock;
+	private final PaymentService payments;
 
 	QueryController(ReadModel read, RelatedPartyService relatedParties, RebateExposureService exposure,
-			BusinessClock clock) {
+			BusinessClock clock, PaymentService payments) {
+		this.payments = payments;
 		this.read = read;
 		this.relatedParties = relatedParties;
 		this.exposure = exposure;
@@ -155,10 +161,11 @@ class QueryController implements ConsoleQueryApi {
 		return this.read.list(PendingApprovalView.class,
 				"SELECT a.id, a.subject_type, a.subject_id, a.required_role, a.title, a.amount_krw, a.status, "
 						+ "a.requested_on, a.correlation_id, coalesce(r.exceeds_limit, f.id IS NOT NULL) AS exceeds_limit, "
-						+ "coalesce(r.related_group, f.id IS NOT NULL) AS related_group, coalesce(r.period, f.period) AS period "
+						+ "coalesce(r.related_group, f.id IS NOT NULL) AS related_group, coalesce(r.period, f.period, o.period) AS period "
 						+ "FROM approval_request a LEFT JOIN review_overview r "
 						+ "ON a.subject_type = 'RebateReview' AND a.subject_id = r.id::text "
 						+ "LEFT JOIN finding_overview f ON a.subject_type = 'RetrospectiveFinding' AND a.subject_id = f.id::text "
+						+ "LEFT JOIN payment_overview o ON a.subject_type = 'OffsetProposal' AND a.subject_id = o.id::text "
 						+ "WHERE a.required_role = ? AND a.status = 'PENDING' ORDER BY a.amount_krw DESC",
 				role);
 	}
@@ -198,6 +205,64 @@ class QueryController implements ConsoleQueryApi {
 	@Override
 	public List<ReferralView> auditReferrals() {
 		return this.read.list(ReferralView.class, "SELECT * FROM audit_referral ORDER BY id DESC");
+	}
+
+	@Override
+	public List<ReceivableAgencyView> receivables() {
+		return this.read.list(ReceivableAgencyView.class,
+				"SELECT agency_id, agency_name, count(*) AS item_count, sum(original_outstanding_krw) AS original_outstanding_krw, "
+						+ "sum(offset_krw) AS offset_krw, sum(deposit_krw) AS deposit_krw, sum(outstanding_krw) AS outstanding_krw, "
+						+ "coalesce(sum(outstanding_krw) FILTER (WHERE aging_days > 0), 0) AS overdue_krw, "
+						+ "coalesce(sum(outstanding_krw) FILTER (WHERE aging_days > ?), 0) AS overdue_beyond_krw, "
+						+ "coalesce(max(aging_days) FILTER (WHERE outstanding_krw > 0), 0) AS max_aging_days "
+						+ "FROM receivable_overview GROUP BY agency_id, agency_name "
+						+ "ORDER BY overdue_beyond_krw DESC, outstanding_krw DESC, agency_id",
+				this.payments.offsetSettings().overdueDaysOver());
+	}
+
+	@Override
+	public List<ReceivableItemView> receivableItems(String id) {
+		return this.read.list(ReceivableItemView.class,
+				"SELECT * FROM receivable_overview WHERE agency_id = ? ORDER BY aging_days DESC, ar_id", id);
+	}
+
+	/**
+	 * Off means every rebate is paid in cash. On, a rebate already decided shows what finance set off,
+	 * one waiting shows the proposal, and one not yet instructed shows what would be proposed now.
+	 */
+	@Override
+	public OffsetComparisonView offsetComparison(String period) {
+		PaymentService.OffsetSettings settings = this.payments.offsetSettings();
+		List<OffsetComparisonView.Line> lines = new ArrayList<>();
+		for (ComparisonClaim claim : this.read.list(ComparisonClaim.class,
+				"SELECT c.rebate_id, c.agency_id, c.agency_name, c.amount_krw, p.status AS payment_status, "
+						+ "coalesce(p.offset_krw, 0) AS offset_krw, coalesce(p.offset_round, 0) AS offset_round, p.offset_basis "
+						+ "FROM claim_overview c LEFT JOIN payment_instruction p ON p.id = c.payment_instruction_id "
+						+ "WHERE c.period = ? AND c.settlement_status <> 'REJECTED_IN_SOURCE' ORDER BY c.agency_id",
+				period)) {
+			PaymentService.OffsetPreview preview = this.payments.previewOffset(claim.agencyId(), claim.amountKrw());
+			boolean decided = claim.paymentStatus() != null && !"OFFSET_REVIEW".equals(claim.paymentStatus());
+			long settled = decided ? claim.offsetKrw() : 0;
+			long proposed = claim.paymentStatus() == null ? preview.offsetKrw()
+					: "OFFSET_REVIEW".equals(claim.paymentStatus()) ? claim.offsetKrw() : settled;
+			String basis = claim.offsetBasis() != null ? claim.offsetBasis() : preview.basis();
+			lines.add(new OffsetComparisonView.Line(claim.rebateId(), claim.agencyId(), claim.agencyName(),
+					claim.amountKrw(), proposed, preview.overdueKrw(), claim.paymentStatus(), settled, basis));
+		}
+		long total = lines.stream().mapToLong(OffsetComparisonView.Line::amountKrw).sum();
+		long proposed = lines.stream().mapToLong(OffsetComparisonView.Line::proposedOffsetKrw).sum();
+		return new OffsetComparisonView(period, settings.enabled(), settings.overdueDaysOver(), lines.size(), total,
+				proposed, total - proposed, (int) lines.stream().filter((line) -> line.proposedOffsetKrw() > 0).count(),
+				lines.stream().mapToLong(OffsetComparisonView.Line::settledOffsetKrw).sum(),
+				lines.stream()
+					.filter((line) -> line.proposedOffsetKrw() > 0)
+					.mapToLong(OffsetComparisonView.Line::overdueBeyondKrw)
+					.sum(),
+				lines);
+	}
+
+	record ComparisonClaim(String rebateId, String agencyId, String agencyName, long amountKrw, String paymentStatus,
+			long offsetKrw, int offsetRound, String offsetBasis) {
 	}
 
 	@Override

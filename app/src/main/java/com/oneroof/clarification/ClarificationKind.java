@@ -10,7 +10,14 @@ public enum ClarificationKind {
 
 	/** Which account the rebate should be paid to, when deposits came from a different account. */
 	ACCOUNT_CONFIRMATION("지급 계좌 확인", Set.of(ClarificationOutcome.ACCOUNT_CONFIRMED,
-			ClarificationOutcome.ACCOUNT_CHANGED, ClarificationOutcome.NO_REPLY));
+			ClarificationOutcome.ACCOUNT_CHANGED, ClarificationOutcome.NO_REPLY)),
+
+	/**
+	 * Notice that a rebate was set off against overdue receivables. No answer means no objection; a
+	 * dispute sends the offset back to finance.
+	 */
+	OFFSET_NOTICE("상계 통지", Set.of(ClarificationOutcome.OFFSET_ACCEPTED, ClarificationOutcome.OFFSET_DISPUTED,
+			ClarificationOutcome.NO_REPLY));
 
 	private final String label;
 	private final Set<ClarificationOutcome> outcomes;

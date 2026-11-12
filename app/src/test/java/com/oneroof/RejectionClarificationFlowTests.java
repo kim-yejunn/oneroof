@@ -27,7 +27,7 @@ import org.springframework.test.annotation.DirtiesContext;
  * explanation goes back to the executive, and a second rejection hands the matter to audit with
  * the claims held rather than written off.
  */
-@SpringBootTest
+@SpringBootTest(properties = "oneroof.offset.enabled=false")
 @Import(TestcontainersConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class RejectionClarificationFlowTests {

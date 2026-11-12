@@ -77,6 +77,18 @@ public class IntakeService {
 		return new Receipt(eventId, true);
 	}
 
+	/** A simulated bank notice that an agency paid in money after the aging report. */
+	@Transactional
+	public Receipt receiveAgencyDeposit(String eventId, String agencyId, long amountKrw, String bankAccount,
+			String reportedBy) {
+		String summary = "%s 입금 통지(모의): %,d원, 입금 계좌 %s".formatted(agencyId, amountKrw, bankAccount);
+		if (!accept(eventId, "AGENCY_DEPOSIT", summary, reportedBy, Provenance.MOCK_REPLY)) {
+			return new Receipt(eventId, false);
+		}
+		this.events.publishEvent(new AgencyDepositReported(eventId, agencyId, amountKrw, bankAccount, reportedBy));
+		return new Receipt(eventId, true);
+	}
+
 	/** Accepts an agency's (simulated) answer to a clarification request, or notice that it never came. */
 	@Transactional
 	public Receipt receiveClarificationReply(String eventId, long clarificationId, String outcome, String replyText,

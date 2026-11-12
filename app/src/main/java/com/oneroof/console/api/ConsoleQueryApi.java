@@ -41,12 +41,12 @@ public interface ConsoleQueryApi {
 	@Operation(summary = "역할별 승인 대기", description = "그 역할이 결정해야 할 승인 요청. 금액이 큰 순서")
 	@GetMapping("/approvals/pending")
 	List<PendingApprovalView> pendingApprovals(@Parameter(description = "역할",
-			schema = @Schema(allowableValues = { "SALES_SUPPORT", "SALES_EXECUTIVE" })) @RequestParam String role);
+			schema = @Schema(allowableValues = { "SALES_SUPPORT", "SALES_EXECUTIVE", "FINANCE" })) @RequestParam String role);
 
 	@Operation(summary = "지급 지시 목록")
 	@GetMapping("/payments")
 	List<PaymentView> payments(@Parameter(description = "이 상태만 조회",
-			schema = @Schema(allowableValues = { "REQUESTED", "HELD", "SENT", "PAID", "FAILED" })) @RequestParam(required = false) String status);
+			schema = @Schema(allowableValues = { "OFFSET_REVIEW", "OFFSET_SETTLED", "OFFSET_DISPUTED", "REQUESTED", "HELD", "SENT", "PAID", "FAILED" })) @RequestParam(required = false) String status);
 
 	@Operation(summary = "감사 로그", description = "최근 기록부터. 사건 ID로 한 정산에서 생긴 기록만 볼 수 있습니다.")
 	@GetMapping("/audit")
@@ -66,6 +66,20 @@ public interface ConsoleQueryApi {
 	@Operation(summary = "감사 이관", description = "감사팀으로 넘긴 건. 이번 검토 회차의 종료이며 후속 확인 의무는 남습니다.")
 	@GetMapping("/audit-referrals")
 	List<ReferralView> auditReferrals();
+
+	@Operation(summary = "대리점 미수금", description = "대리점별 원본 미수금과 이후 상계·입금(모의)을 반영한 잔액. 연체 기준일 초과분 포함")
+	@GetMapping("/receivables")
+	List<ReceivableAgencyView> receivables();
+
+	@Operation(summary = "대리점 미수금 내역", description = "송장별 원본 잔액, 상계·입금 반영액, 남은 잔액")
+	@GetMapping("/agencies/{id}/receivables")
+	List<ReceivableItemView> receivableItems(@Parameter(description = "대리점 ID", example = "D-011") @PathVariable String id);
+
+	@Operation(summary = "상계 확장 켬·끔 비교",
+			description = "한 달 장려금을 확장 없이 전액 현금 지급할 때와 연체 미수금 상계를 적용할 때를 비교합니다. 제안액은 현재 잔액 기준 계산 결과")
+	@GetMapping("/offsets/comparison")
+	OffsetComparisonView offsetComparison(
+			@Parameter(description = "정산 월", example = "2026-06") @RequestParam(defaultValue = "2026-06") String period);
 
 	@Operation(summary = "마스터 정정 이력")
 	@GetMapping("/master-changes")
