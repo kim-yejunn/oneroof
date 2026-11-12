@@ -50,6 +50,23 @@ public class ApprovalService {
 		}
 	}
 
+	/** Withdraws pending requests whose subject changed; a request already decided is left as it is and noted. */
+	@ApplicationModuleListener
+	void on(ApprovalRequestsWithdrawn withdrawn) {
+		for (ApprovalRequestsWithdrawn.Withdrawal withdrawal : withdrawn.withdrawals()) {
+			for (ApprovalRequest request : this.requests.findBySubjectTypeAndSubjectIdOrderByIdAsc(
+					withdrawal.subjectType(), withdrawal.subjectId())) {
+				if (request.getStatus() != ApprovalStatus.PENDING) {
+					continue;
+				}
+				request.withdraw(withdrawal.reason(), this.clock.today());
+				this.auditLog.record(new AuditRecord(Role.SYSTEM.name(), "APPROVAL_WITHDRAWN", SUBJECT,
+						String.valueOf(request.getId()), "상신 철회: %s — %s".formatted(request.getTitle(), withdrawal.reason()),
+						Provenance.CALCULATED, request.getCorrelationId()));
+			}
+		}
+	}
+
 	@Transactional
 	public ApprovalRequest decide(long requestId, Role actorRole, String actorName, boolean approved, String comment) {
 		return decideAll(List.of(requestId), actorRole, actorName, approved, comment).get(0);

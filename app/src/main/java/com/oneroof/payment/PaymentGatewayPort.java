@@ -18,7 +18,7 @@ public interface PaymentGatewayPort {
 	/** Whether this adapter performs real transfers or simulates them. */
 	boolean isSimulated();
 
-	record PaymentOrder(long instructionId, String agencyId, long amountKrw) {
+	record PaymentOrder(long instructionId, String agencyId, String payeeAccount, long amountKrw) {
 	}
 
 	record BulkReceipt(String bulkReference, List<String> orderReferences) {

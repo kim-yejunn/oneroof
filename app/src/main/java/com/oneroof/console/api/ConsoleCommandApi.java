@@ -4,6 +4,8 @@ import com.oneroof.console.api.Commands.BankRepliesResult;
 import com.oneroof.console.api.Commands.BankReplyRequest;
 import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
+import com.oneroof.console.api.Commands.ClarificationReplyRequest;
+import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
 import com.oneroof.console.api.Commands.ReceiptView;
@@ -27,7 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * simulates signing in as that role; whether the role has the authority is decided by the module
  * that owns the subject.
  */
-@Tag(name = "처리", description = "정산 접수, 승인·반려, 모의 은행 회신. 결과는 모듈 사이 이벤트로 이어지며 커밋 직후 비동기로 반영됩니다.")
+@Tag(name = "처리", description = "정산 접수, 승인·반려, 마스터 정정, 모의 은행·대리점 회신. 결과는 모듈 사이 이벤트로 이어지며 커밋 직후 비동기로 반영됩니다.")
 @RequestMapping("/api")
 public interface ConsoleCommandApi {
 
@@ -70,6 +72,25 @@ public interface ConsoleCommandApi {
 	@Operation(summary = "모의 은행 회신 (대기 전체)", description = "은행 회신을 기다리는 모든 지급 지시에 이체 완료를 회신합니다.")
 	@PostMapping("/payments/bank-replies")
 	BankRepliesResult bankReplies();
+
+	@Operation(summary = "마스터 정정 신고",
+			description = "대리점의 대표자·주소·정산계좌 정정을 접수합니다. 관련자 그룹이 다시 계산되어 결정 전 검토는 재분류되고, "
+					+ "전결로 처리된 지난달이 임원 승인 대상이었다면 사후 확인 요청이 생깁니다.")
+	@ApiResponse(responseCode = "200", description = "접수 결과")
+	@ApiResponse(responseCode = "400", description = "반영할 수 없는 정정",
+			content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+	@PostMapping("/master-changes")
+	ReceiptView reportMasterChange(@RoleHeader @RequestHeader(ROLE_HEADER) String role,
+			@Valid @RequestBody MasterChangeRequest request);
+
+	@Operation(summary = "모의 대리점 회신",
+			description = "소명·계좌 확인 요청에 대리점이 회신한 것을 흉내 냅니다. 요청 하나에 회신 하나만 반영됩니다.")
+	@ApiResponse(responseCode = "200", description = "접수 결과")
+	@ApiResponse(responseCode = "400", description = "요청 종류에 맞지 않는 회신",
+			content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
+	@PostMapping("/clarifications/{id}/reply")
+	ReceiptView replyToClarification(@Parameter(description = "소명·확인 요청 ID") @PathVariable long id,
+			@Valid @RequestBody ClarificationReplyRequest request);
 
 	/** Documents the role header once for every command that takes it. */
 	@Parameter(name = ROLE_HEADER, in = ParameterIn.HEADER, required = true,

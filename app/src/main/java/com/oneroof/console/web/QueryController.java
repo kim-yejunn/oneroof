@@ -6,7 +6,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.oneroof.console.api.ApprovalHistoryView;
 import com.oneroof.console.api.AuditEntryView;
+import com.oneroof.console.api.ClarificationView;
+import com.oneroof.console.api.FindingView;
+import com.oneroof.console.api.IdentityView;
+import com.oneroof.console.api.MasterChangeView;
+import com.oneroof.console.api.ReferralView;
 import com.oneroof.console.api.ClaimView;
 import com.oneroof.console.api.ConsoleQueryApi;
 import com.oneroof.console.api.EvidenceView;
@@ -46,7 +52,8 @@ class QueryController implements ConsoleQueryApi {
 
 	private static final String REVIEW_COLUMNS = "id, period, unit_key, related_group, member_agency_ids, total_krw, "
 			+ "limit_krw, exceeds_limit, required_approver, status, title, correlation_id, approval_request_id, "
-			+ "approval_status, decided_by_role, decided_by_name, decision_comment, claim_count, paid_count";
+			+ "approval_status, decided_by_role, decided_by_name, decision_comment, claim_count, paid_count, round, "
+			+ "clarification_id, clarification_status";
 
 	private final ReadModel read;
 	private final RelatedPartyService relatedParties;
@@ -97,13 +104,30 @@ class QueryController implements ConsoleQueryApi {
 		ReviewRow row = this.read.one(ReviewRow.class, "SELECT * FROM review_overview WHERE id = ?", id);
 		List<ClaimView> claims = this.read.list(ClaimView.class,
 				"SELECT * FROM claim_overview WHERE review_id = ? ORDER BY agency_id", id);
+		String reviewId = String.valueOf(id);
 		List<AuditEntryView> audit = this.read.list(AuditEntryView.class,
 				"SELECT a.* FROM audit_log a WHERE a.correlation_id = ? AND ("
 						+ "(a.subject_type = 'RebateReview' AND a.subject_id = ?) "
-						+ "OR (a.subject_type = 'ApprovalRequest' AND a.subject_id = ?) "
+						+ "OR (a.subject_type = 'ApprovalRequest' AND a.subject_id IN (SELECT x.id::text FROM approval_request x "
+						+ "WHERE x.subject_type = 'RebateReview' AND x.subject_id = ?)) "
+						+ "OR (a.subject_type = 'ClarificationRequest' AND a.subject_id IN (SELECT y.id::text "
+						+ "FROM clarification_request y WHERE y.subject_type = 'RebateReview' AND y.subject_id = ?)) "
 						+ "OR (a.subject_type = 'PaymentInstruction' AND a.subject_id IN (SELECT payment_instruction_id::text "
-						+ "FROM claim_overview WHERE review_id = ? AND payment_instruction_id IS NOT NULL))) ORDER BY a.id",
-				row.correlationId(), String.valueOf(id), String.valueOf(row.approvalRequestId()), id);
+						+ "FROM claim_overview WHERE review_id = ? AND payment_instruction_id IS NOT NULL)) "
+						+ "OR (a.subject_type = 'ClarificationRequest' AND a.subject_id IN (SELECT y.id::text "
+						+ "FROM clarification_request y JOIN claim_overview c ON y.subject_type = 'PaymentInstruction' "
+						+ "AND y.subject_id = c.payment_instruction_id::text WHERE c.review_id = ?))) ORDER BY a.id",
+				row.correlationId(), reviewId, reviewId, reviewId, id, id);
+		List<ClarificationView> clarifications = this.read.list(ClarificationView.class,
+				"SELECT * FROM clarification_overview WHERE (subject_type = 'RebateReview' AND subject_id = ?) "
+						+ "OR (subject_type = 'PaymentInstruction' AND subject_id IN (SELECT payment_instruction_id::text "
+						+ "FROM claim_overview WHERE review_id = ? AND payment_instruction_id IS NOT NULL)) ORDER BY id",
+				reviewId, id);
+		List<ApprovalHistoryView> approvals = this.read.list(ApprovalHistoryView.class,
+				"SELECT id, title, required_role, status, requested_on, decided_by_role, decided_by_name, decided_on, "
+						+ "decision_comment FROM approval_request WHERE subject_type = 'RebateReview' AND subject_id = ? "
+						+ "ORDER BY id",
+				reviewId);
 
 		GroupView evidence = null;
 		List<HistoryMonthView> history = null;
@@ -121,17 +145,20 @@ class QueryController implements ConsoleQueryApi {
 		return new ReviewDetailView(row.id(), row.period(), row.unitKey(), row.relatedGroup(), row.memberAgencyIds(),
 				row.totalKrw(), row.limitKrw(), row.exceedsLimit(), row.requiredApprover(), row.status(), row.title(),
 				row.rationale(), row.correlationId(), row.approvalRequestId(), row.approvalStatus(), row.decidedByRole(),
-				row.decidedByName(), row.decidedOn(), row.decisionComment(), row.claimCount(), row.paidCount(), claims,
-				audit, evidence, history);
+				row.decidedByName(), row.decidedOn(), row.decisionComment(), row.claimCount(), row.paidCount(), row.round(),
+				row.clarificationId(), row.clarificationStatus(), claims, audit, evidence, history, clarifications,
+				approvals);
 	}
 
 	@Override
 	public List<PendingApprovalView> pendingApprovals(String role) {
 		return this.read.list(PendingApprovalView.class,
 				"SELECT a.id, a.subject_type, a.subject_id, a.required_role, a.title, a.amount_krw, a.status, "
-						+ "a.requested_on, a.correlation_id, r.exceeds_limit, r.related_group, r.period "
+						+ "a.requested_on, a.correlation_id, coalesce(r.exceeds_limit, f.id IS NOT NULL) AS exceeds_limit, "
+						+ "coalesce(r.related_group, f.id IS NOT NULL) AS related_group, coalesce(r.period, f.period) AS period "
 						+ "FROM approval_request a LEFT JOIN review_overview r "
 						+ "ON a.subject_type = 'RebateReview' AND a.subject_id = r.id::text "
+						+ "LEFT JOIN finding_overview f ON a.subject_type = 'RetrospectiveFinding' AND a.subject_id = f.id::text "
 						+ "WHERE a.required_role = ? AND a.status = 'PENDING' ORDER BY a.amount_krw DESC",
 				role);
 	}
@@ -152,6 +179,38 @@ class QueryController implements ConsoleQueryApi {
 					"SELECT * FROM audit_log WHERE correlation_id = ? ORDER BY id DESC LIMIT ?", correlationId, capped);
 		}
 		return this.read.list(AuditEntryView.class, "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", capped);
+	}
+
+	@Override
+	public List<ClarificationView> clarifications(String status) {
+		if (status != null) {
+			return this.read.list(ClarificationView.class,
+					"SELECT * FROM clarification_overview WHERE status = ? ORDER BY id DESC", status);
+		}
+		return this.read.list(ClarificationView.class, "SELECT * FROM clarification_overview ORDER BY id DESC");
+	}
+
+	@Override
+	public List<FindingView> findings() {
+		return this.read.list(FindingView.class, "SELECT * FROM finding_overview ORDER BY period, id");
+	}
+
+	@Override
+	public List<ReferralView> auditReferrals() {
+		return this.read.list(ReferralView.class, "SELECT * FROM audit_referral ORDER BY id DESC");
+	}
+
+	@Override
+	public List<MasterChangeView> masterChanges() {
+		return this.read.list(MasterChangeView.class, "SELECT * FROM master_change ORDER BY id DESC");
+	}
+
+	@Override
+	public List<IdentityView> identities(String id) {
+		return this.read.list(IdentityView.class,
+				"SELECT agency_id, kind, identity_value, effective_from, effective_to, provenance, source_ref "
+						+ "FROM agency_identity WHERE agency_id = ? ORDER BY kind, effective_from",
+				id);
 	}
 
 	@Override
@@ -221,6 +280,7 @@ class QueryController implements ConsoleQueryApi {
 	record ReviewRow(long id, String period, String unitKey, boolean relatedGroup, String memberAgencyIds, long totalKrw,
 			long limitKrw, boolean exceedsLimit, String requiredApprover, String status, String title, String rationale,
 			String correlationId, Long approvalRequestId, String approvalStatus, String decidedByRole,
-			String decidedByName, LocalDate decidedOn, String decisionComment, long claimCount, long paidCount) {
+			String decidedByName, LocalDate decidedOn, String decisionComment, long claimCount, long paidCount,
+			int round, Long clarificationId, String clarificationStatus) {
 	}
 }

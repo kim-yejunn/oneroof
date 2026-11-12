@@ -5,6 +5,9 @@ public enum PaymentStatus {
 	/** Created after approval; not yet handed to the bank. */
 	REQUESTED,
 
+	/** Not sent: the payee account must be confirmed first. */
+	HELD,
+
 	/** Handed to the bank; waiting for its reply. */
 	SENT,
 

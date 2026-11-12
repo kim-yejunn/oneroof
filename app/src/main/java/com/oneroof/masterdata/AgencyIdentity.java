@@ -62,6 +62,14 @@ public class AgencyIdentity {
 		this.sourceRef = sourceRef;
 	}
 
+	/** Ends this value the day the replacing value takes effect. */
+	void closeOn(LocalDate replacedFrom) {
+		if (this.effectiveTo != null) {
+			throw new IllegalStateException("이미 종료된 식별정보 #%d".formatted(this.id));
+		}
+		this.effectiveTo = replacedFrom;
+	}
+
 	boolean isEffectiveOn(LocalDate date) {
 		return !date.isBefore(this.effectiveFrom) && (this.effectiveTo == null || date.isBefore(this.effectiveTo));
 	}

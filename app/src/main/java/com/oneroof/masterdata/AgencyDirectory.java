@@ -23,6 +23,18 @@ public class AgencyDirectory {
 		return this.agencies.findAll(org.springframework.data.domain.Sort.by("agencyId"));
 	}
 
+	public java.util.Optional<Agency> agency(String agencyId) {
+		return this.agencies.findById(agencyId);
+	}
+
+	/** The value registered for one identifier of one agency on the given date. */
+	public java.util.Optional<AgencyIdentity> registered(String agencyId, IdentityKind kind, LocalDate date) {
+		return this.identities.findByAgencyIdOrderByKindAscEffectiveFromAsc(agencyId)
+			.stream()
+			.filter((identity) -> identity.getKind() == kind && identity.isEffectiveOn(date))
+			.findFirst();
+	}
+
 	/** The identifiers registered for every agency on the given date. */
 	public List<AgencyIdentity> identitiesEffectiveOn(LocalDate date) {
 		return this.identities.findAllByOrderByAgencyIdAscKindAscEffectiveFromAsc()

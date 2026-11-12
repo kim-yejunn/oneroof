@@ -101,6 +101,18 @@ public class ApprovalRequest {
 		this.decisionComment = comment;
 	}
 
+	/** Takes back a request nobody has decided yet. Returns false when it was already decided. */
+	boolean withdraw(String reason, LocalDate on) {
+		if (this.status != ApprovalStatus.PENDING) {
+			return false;
+		}
+		this.status = ApprovalStatus.WITHDRAWN;
+		this.decidedByRole = Role.SYSTEM;
+		this.decidedOn = on;
+		this.decisionComment = reason;
+		return true;
+	}
+
 	public Long getId() {
 		return this.id;
 	}

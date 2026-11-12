@@ -91,6 +91,18 @@ public class RebateClaim {
 		this.settlementStatus = ClaimStatus.REJECTED;
 	}
 
+	/** Takes the claim out of a review that was replaced, so the replacing review can take it. */
+	void returnToPending() {
+		requireStatus(ClaimStatus.UNDER_APPROVAL);
+		this.reviewId = null;
+		this.settlementStatus = ClaimStatus.PENDING;
+	}
+
+	void holdForAudit() {
+		requireStatus(ClaimStatus.UNDER_APPROVAL);
+		this.settlementStatus = ClaimStatus.HELD_FOR_AUDIT;
+	}
+
 	void markPaid() {
 		requireStatus(ClaimStatus.PAYMENT_REQUESTED);
 		this.settlementStatus = ClaimStatus.PAID;

@@ -32,6 +32,23 @@ public final class Commands {
 	public record BankReplyRequest(@Schema(description = "true 이체 완료, false 이체 실패") boolean succeeded) {
 	}
 
+	@Schema(description = "대리점 마스터 정정 신고")
+	public record MasterChangeRequest(
+			@NotNull @Schema(example = "D-041") String agencyId,
+			@NotNull @Schema(allowableValues = { "REPRESENTATIVE", "ADDRESS", "BANK_ACCOUNT" }, example = "ADDRESS") String kind,
+			@NotNull @Schema(description = "새로 등록할 값", example = "대전시 중앙로 260") String newValue,
+			@NotNull @Schema(description = "새 값이 적용되는 날 (기준일 이전)", example = "2026-01-01") java.time.LocalDate effectiveFrom,
+			@NotNull @Schema(description = "정정 사유", example = "2025-12 사업장 이전 신고서 접수, 마스터 미반영 확인") String reason) {
+	}
+
+	@Schema(description = "대리점의 모의 회신. NO_REPLY 는 회신 기한이 지난 것을 흉내 냅니다.")
+	public record ClarificationReplyRequest(
+			@NotNull @Schema(allowableValues = { "EXPLAINED", "ACCOUNT_CONFIRMED", "ACCOUNT_CHANGED", "NO_REPLY" }) String outcome,
+			@Schema(nullable = true, description = "대리점이 쓴 회신 내용",
+					example = "D-011·D-024 는 같은 대표의 별도 법인으로 사무실을 함께 임차함. 임대차계약서 첨부") String replyText,
+			@Schema(nullable = true, description = "ACCOUNT_CHANGED 일 때 새 지급 계좌", example = "국민 412-27-556310") String replyAccount) {
+	}
+
 	@Schema(description = "사건 접수 결과")
 	public record ReceiptView(@Schema(example = "EVT-SETTLEMENT-2026-06") String eventId,
 			@Schema(description = "false면 같은 사건이 이미 접수되어 아무것도 하지 않음") boolean accepted) {

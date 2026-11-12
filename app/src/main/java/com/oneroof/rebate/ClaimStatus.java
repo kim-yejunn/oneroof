@@ -22,6 +22,9 @@ public enum ClaimStatus {
 	PAID,
 
 	/** The review it belongs to was rejected. */
-	REJECTED
+	REJECTED,
+
+	/** Not paid while audit looks at the review it belongs to. */
+	HELD_FOR_AUDIT
 
 }

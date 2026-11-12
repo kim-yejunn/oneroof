@@ -11,6 +11,8 @@ interface RebateReviewRepository extends JpaRepository<RebateReview, Long> {
 
 	List<RebateReview> findByPeriodYmOrderByIdAsc(String periodYm);
 
+	List<RebateReview> findByStatusOrderByIdAsc(ReviewStatus status);
+
 	/**
 	 * Loads a review and holds its row until the transaction ends. Payment confirmations for the
 	 * claims of one review arrive concurrently; taking them one at a time is what lets the last

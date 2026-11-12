@@ -64,6 +64,33 @@ public class IntakeService {
 		return new Receipt(eventId, true);
 	}
 
+	/** Accepts a report that an agency's registered identifier changed. Checking it is the master data module's job. */
+	@Transactional
+	public Receipt receiveMasterChange(String eventId, String agencyId, String kind, String newValue,
+			java.time.LocalDate effectiveFrom, String reason, String reportedBy) {
+		String summary = "%s %s 정정 신고: '%s' (%s 부터) — %s".formatted(agencyId, kind, newValue, effectiveFrom, reason);
+		if (!accept(eventId, "MASTER_CHANGE", summary, reportedBy, Provenance.DEPARTMENT_CLAIM)) {
+			return new Receipt(eventId, false);
+		}
+		this.events.publishEvent(new MasterChangeReported(eventId, agencyId, kind, newValue, effectiveFrom.toString(),
+				reason, reportedBy));
+		return new Receipt(eventId, true);
+	}
+
+	/** Accepts an agency's (simulated) answer to a clarification request, or notice that it never came. */
+	@Transactional
+	public Receipt receiveClarificationReply(String eventId, long clarificationId, String outcome, String replyText,
+			String replyAccount) {
+		String summary = "소명·확인 요청 #%d 회신: %s%s".formatted(clarificationId, outcome,
+				replyText == null || replyText.isBlank() ? "" : " — " + replyText);
+		if (!accept(eventId, "CLARIFICATION_REPLY", summary, "EXTERNAL:AGENCY", Provenance.MOCK_REPLY)) {
+			return new Receipt(eventId, false);
+		}
+		this.events.publishEvent(new ClarificationReplyReceived(eventId, clarificationId, outcome,
+				replyText == null ? "" : replyText, replyAccount));
+		return new Receipt(eventId, true);
+	}
+
 	@Transactional
 	public Receipt receivePaymentResult(String eventId, long instructionId, boolean succeeded, String bankReference) {
 		return receivePaymentResults(eventId,

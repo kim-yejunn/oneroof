@@ -70,6 +70,13 @@ public class RebateReview {
 	@Column(name = "correlation_id", nullable = false)
 	private String correlationId;
 
+	/** 1 for the first decision; 2 once resubmitted with the agencies' explanation. */
+	@Column(nullable = false)
+	private int round = 1;
+
+	@Column(name = "superseded_by_change")
+	private Long supersededByChange;
+
 	@Version
 	private long version;
 
@@ -105,6 +112,32 @@ public class RebateReview {
 	void markPaid() {
 		requireStatus(ReviewStatus.APPROVED);
 		this.status = ReviewStatus.PAID;
+	}
+
+	void requestClarification() {
+		requireStatus(ReviewStatus.AWAITING_APPROVAL);
+		this.status = ReviewStatus.CLARIFICATION_REQUESTED;
+	}
+
+	/** Puts the review before the approver again, with the agencies' explanation added to the rationale. */
+	void resubmit(String explanation) {
+		requireStatus(ReviewStatus.CLARIFICATION_REQUESTED);
+		this.round++;
+		this.rationale = this.rationale + "\n" + explanation;
+		this.status = ReviewStatus.AWAITING_APPROVAL;
+	}
+
+	void referToAudit() {
+		if (this.status != ReviewStatus.AWAITING_APPROVAL && this.status != ReviewStatus.CLARIFICATION_REQUESTED) {
+			throw new IllegalStateException("검토 #%d 은 %s 상태라 감사 이관할 수 없음".formatted(this.id, this.status));
+		}
+		this.status = ReviewStatus.REFERRED_TO_AUDIT;
+	}
+
+	void supersede(long changeId) {
+		requireStatus(ReviewStatus.AWAITING_APPROVAL);
+		this.status = ReviewStatus.SUPERSEDED;
+		this.supersededByChange = changeId;
 	}
 
 	private void requireStatus(ReviewStatus expected) {
@@ -164,6 +197,14 @@ public class RebateReview {
 
 	public String getRationale() {
 		return this.rationale;
+	}
+
+	public int getRound() {
+		return this.round;
+	}
+
+	public Long getSupersededByChange() {
+		return this.supersededByChange;
 	}
 
 	public String getCorrelationId() {

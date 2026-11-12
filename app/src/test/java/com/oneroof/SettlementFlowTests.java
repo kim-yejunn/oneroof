@@ -89,8 +89,26 @@ class SettlementFlowTests {
 			.isInstanceOf(AuthorityViolationException.class);
 		assertThat(this.approvals.pendingFor(Role.SALES_EXECUTIVE)).hasSize(1);
 
-		// 4. The executive approves: three instructions are created and handed to the (mock) bank.
+		// 4. The executive approves: three instructions are created. D-024's deposits came from another
+		// account than the registered one, so its payment is held and the agency is asked to confirm.
 		this.approvals.decide(groupRequest.getId(), Role.SALES_EXECUTIVE, "영업임원", true, "합산 금액 확인 후 승인");
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(this.payments.awaitingBankReply()).hasSize(2));
+		assertThat(this.payments.awaitingBankReply()).extracting(PaymentInstruction::getAgencyId)
+			.containsExactlyInAnyOrder("D-011", "D-037");
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(count("clarification_request WHERE kind = 'ACCOUNT_CONFIRMATION' "
+					+ "AND agency_ids = 'D-024' AND status = 'SENT'")).isEqualTo(1));
+		assertThat(this.jdbc.queryForObject("SELECT hold_reason FROM payment_instruction WHERE agency_id = 'D-024'",
+				String.class)).contains("하나 233-91-004417").contains("국민 412-27-556310");
+		RebateReview groupReview = review(groupRequest);
+		assertThat(groupReview.getStatus()).isEqualTo(ReviewStatus.APPROVED);
+
+		// 4b. The agency confirms the registered account; the hold is released and the payment sent.
+		long confirmation = this.jdbc.queryForObject(
+				"SELECT id FROM clarification_request WHERE kind = 'ACCOUNT_CONFIRMATION'", Long.class);
+		this.intake.receiveClarificationReply("EVT-CLARIFY-" + confirmation, confirmation, "ACCOUNT_CONFIRMED",
+				"등록된 하나은행 계좌가 맞음. 국민 계좌 입금은 대표자 개인 계좌 대납", null);
 		await().atMost(Duration.ofSeconds(20))
 			.untilAsserted(() -> assertThat(this.payments.awaitingBankReply()).hasSize(3));
 		List<PaymentInstruction> groupInstructions = this.payments.awaitingBankReply();
@@ -98,8 +116,6 @@ class SettlementFlowTests {
 			.containsExactlyInAnyOrder("D-011", "D-024", "D-037");
 		assertThat(groupInstructions.stream().mapToLong((instruction) -> instruction.getAmount().krw()).sum())
 			.isEqualTo(3_888_097L);
-		RebateReview groupReview = review(groupRequest);
-		assertThat(groupReview.getStatus()).isEqualTo(ReviewStatus.APPROVED);
 
 		// 5. The bank confirms each transfer; the review is paid once all three are confirmed.
 		for (PaymentInstruction instruction : groupInstructions) {
@@ -141,7 +157,7 @@ class SettlementFlowTests {
 		// not one or more per claim.
 		await().atMost(Duration.ofSeconds(20))
 			.untilAsserted(() -> assertThat(count("event_publication WHERE completion_date IS NULL")).isZero());
-		assertThat(count("event_publication")).isLessThan(20);
+		assertThat(count("event_publication")).isLessThan(30);
 
 		// 10. Every step left a trace tied to the submitting event, and no event is left undelivered.
 		assertThat(count("audit_log WHERE correlation_id = '" + EVENT_ID + "' AND action = 'APPROVAL_GRANTED'"))

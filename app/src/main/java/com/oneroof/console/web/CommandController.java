@@ -6,10 +6,13 @@ import java.util.stream.Collectors;
 
 import com.oneroof.approval.ApprovalRequest;
 import com.oneroof.approval.ApprovalService;
+import com.oneroof.clarification.ClarificationService;
 import com.oneroof.console.api.Commands.BankRepliesResult;
 import com.oneroof.console.api.Commands.BankReplyRequest;
 import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
+import com.oneroof.console.api.Commands.ClarificationReplyRequest;
+import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
 import com.oneroof.console.api.Commands.ReceiptView;
@@ -18,6 +21,7 @@ import com.oneroof.console.api.ConsoleCommandApi;
 import com.oneroof.intake.IntakeService;
 import com.oneroof.intake.PaymentResultsReceived;
 import com.oneroof.intake.Receipt;
+import com.oneroof.masterdata.MasterCorrectionService;
 import com.oneroof.payment.PaymentService;
 import com.oneroof.shared.Role;
 import org.springframework.web.bind.annotation.RestController;
@@ -29,11 +33,44 @@ class CommandController implements ConsoleCommandApi {
 	private final IntakeService intake;
 	private final ApprovalService approvals;
 	private final PaymentService payments;
+	private final MasterCorrectionService masterCorrections;
+	private final ClarificationService clarifications;
 
-	CommandController(IntakeService intake, ApprovalService approvals, PaymentService payments) {
+	CommandController(IntakeService intake, ApprovalService approvals, PaymentService payments,
+			MasterCorrectionService masterCorrections, ClarificationService clarifications) {
 		this.intake = intake;
 		this.approvals = approvals;
 		this.payments = payments;
+		this.masterCorrections = masterCorrections;
+		this.clarifications = clarifications;
+	}
+
+	/**
+	 * Checked here first so a mistyped correction is refused at once. The event id is derived from
+	 * the content, so submitting the same correction twice is harmless.
+	 */
+	@Override
+	public ReceiptView reportMasterChange(String role, MasterChangeRequest request) {
+		Role actor = actor(role);
+		this.masterCorrections
+			.problemWith(request.agencyId(), request.kind(), request.newValue(), request.effectiveFrom())
+			.ifPresent((problem) -> {
+				throw new IllegalArgumentException(problem);
+			});
+		String eventId = "EVT-MASTER-%s-%s-%08x".formatted(request.agencyId(), request.kind(),
+				(request.newValue().trim() + "|" + request.effectiveFrom()).hashCode());
+		return receipt(this.intake.receiveMasterChange(eventId, request.agencyId(), request.kind(),
+				request.newValue().trim(), request.effectiveFrom(), request.reason(), actor.name()));
+	}
+
+	/** One reply per request: the event id is the request's, so a second reply is acknowledged and ignored. */
+	@Override
+	public ReceiptView replyToClarification(long id, ClarificationReplyRequest request) {
+		this.clarifications.problemWith(id, request.outcome(), request.replyAccount()).ifPresent((problem) -> {
+			throw new IllegalArgumentException(problem);
+		});
+		return receipt(this.intake.receiveClarificationReply("EVT-CLARIFY-" + id, id, request.outcome(),
+				request.replyText(), request.replyAccount()));
 	}
 
 	/** The event id is derived from the month, so submitting the same month twice is harmless. */

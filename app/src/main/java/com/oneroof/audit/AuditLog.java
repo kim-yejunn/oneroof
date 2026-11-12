@@ -14,11 +14,29 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuditLog {
 
 	private final AuditEntryRepository entries;
+	private final AuditReferralRepository referrals;
 	private final BusinessClock clock;
 
-	AuditLog(AuditEntryRepository entries, BusinessClock clock) {
+	AuditLog(AuditEntryRepository entries, AuditReferralRepository referrals, BusinessClock clock) {
 		this.entries = entries;
+		this.referrals = referrals;
 		this.clock = clock;
+	}
+
+	/** Hands a matter to audit and records that it was handed over, in the caller's transaction. */
+	@Transactional
+	public AuditReferral refer(AuditReferral.Referral referral) {
+		AuditReferral saved = this.referrals.save(new AuditReferral(referral, this.clock.today()));
+		record(new AuditRecord(referral.referredBy(), "AUDIT_REFERRED", referral.subjectType(), referral.subjectId(),
+				"감사 이관 #%d: %s — %s (부정 확정 아님, 후속 확인 대상)".formatted(saved.getId(), referral.title(),
+						referral.reason()),
+				com.oneroof.shared.Provenance.CALCULATED, referral.correlationId()));
+		return saved;
+	}
+
+	@Transactional(readOnly = true)
+	public List<AuditReferral> referrals() {
+		return this.referrals.findAllByOrderByIdAsc();
 	}
 
 	@Transactional

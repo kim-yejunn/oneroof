@@ -13,14 +13,17 @@ public record ReviewView(
 		@Schema(example = "2000000") long limitKrw,
 		boolean exceedsLimit,
 		@Schema(allowableValues = { "SALES_SUPPORT", "SALES_EXECUTIVE" }) String requiredApprover,
-		@Schema(allowableValues = { "AWAITING_APPROVAL", "APPROVED", "REJECTED", "PAID" }) String status,
+		@Schema(allowableValues = { "AWAITING_APPROVAL", "APPROVED", "REJECTED", "PAID", "CLARIFICATION_REQUESTED", "REFERRED_TO_AUDIT", "SUPERSEDED" }) String status,
 		String title,
 		@Schema(description = "정산을 연 사건 ID. 이 검토에서 생긴 모든 기록을 묶음") String correlationId,
 		@Schema(nullable = true) Long approvalRequestId,
-		@Schema(nullable = true, allowableValues = { "PENDING", "APPROVED", "REJECTED" }) String approvalStatus,
+		@Schema(nullable = true, allowableValues = { "PENDING", "APPROVED", "REJECTED", "WITHDRAWN" }) String approvalStatus,
 		@Schema(nullable = true) String decidedByRole,
 		@Schema(nullable = true) String decidedByName,
 		@Schema(nullable = true) String decisionComment,
 		long claimCount,
-		long paidCount) {
+		long paidCount,
+		@Schema(description = "1차 결정은 1, 소명 첨부 재상신은 2") int round,
+		@Schema(nullable = true) Long clarificationId,
+		@Schema(nullable = true) String clarificationStatus) {
 }

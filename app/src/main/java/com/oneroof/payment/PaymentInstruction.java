@@ -44,6 +44,12 @@ public class PaymentInstruction {
 	@Column(name = "bank_reference")
 	private String bankReference;
 
+	@Column(name = "payee_account")
+	private String payeeAccount;
+
+	@Column(name = "hold_reason")
+	private String holdReason;
+
 	@Column(name = "requested_on", nullable = false)
 	private LocalDate requestedOn;
 
@@ -56,14 +62,34 @@ public class PaymentInstruction {
 	protected PaymentInstruction() {
 	}
 
-	PaymentInstruction(PaymentsRequested.Payment requested, LocalDate requestedOn) {
+	/**
+	 * @param holdReason why the payee account has to be confirmed before sending, or {@code null}
+	 * when it can be sent
+	 */
+	PaymentInstruction(PaymentsRequested.Payment requested, String payeeAccount, String holdReason,
+			LocalDate requestedOn) {
 		this.referenceType = requested.referenceType();
 		this.referenceId = requested.referenceId();
 		this.agencyId = requested.agencyId();
 		this.amountKrw = requested.amountKrw();
-		this.status = PaymentStatus.REQUESTED;
+		this.payeeAccount = payeeAccount;
+		this.holdReason = holdReason;
+		this.status = holdReason == null ? PaymentStatus.REQUESTED : PaymentStatus.HELD;
 		this.requestedOn = requestedOn;
 		this.correlationId = requested.correlationId();
+	}
+
+	/** Lets a held instruction go to the bank, paying the account that was confirmed. */
+	void release(String confirmedAccount) {
+		requireStatus(PaymentStatus.HELD);
+		this.payeeAccount = confirmedAccount;
+		this.status = PaymentStatus.REQUESTED;
+	}
+
+	/** Keeps the hold and says why it continues. */
+	void extendHold(String reason) {
+		requireStatus(PaymentStatus.HELD);
+		this.holdReason = this.holdReason + " / " + reason;
 	}
 
 	void markSent(String gatewayReference) {
@@ -115,6 +141,14 @@ public class PaymentInstruction {
 
 	public String getBankReference() {
 		return this.bankReference;
+	}
+
+	public String getPayeeAccount() {
+		return this.payeeAccount;
+	}
+
+	public String getHoldReason() {
+		return this.holdReason;
 	}
 
 	public LocalDate getRequestedOn() {

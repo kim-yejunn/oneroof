@@ -46,13 +46,34 @@ public interface ConsoleQueryApi {
 	@Operation(summary = "지급 지시 목록")
 	@GetMapping("/payments")
 	List<PaymentView> payments(@Parameter(description = "이 상태만 조회",
-			schema = @Schema(allowableValues = { "REQUESTED", "SENT", "PAID", "FAILED" })) @RequestParam(required = false) String status);
+			schema = @Schema(allowableValues = { "REQUESTED", "HELD", "SENT", "PAID", "FAILED" })) @RequestParam(required = false) String status);
 
 	@Operation(summary = "감사 로그", description = "최근 기록부터. 사건 ID로 한 정산에서 생긴 기록만 볼 수 있습니다.")
 	@GetMapping("/audit")
 	List<AuditEntryView> audit(
 			@Parameter(description = "사건 ID", example = "EVT-SETTLEMENT-2026-06") @RequestParam(required = false) String correlationId,
 			@Parameter(description = "최대 건수 (1~1000)") @RequestParam(defaultValue = "300") int limit);
+
+	@Operation(summary = "소명·확인 요청", description = "대리점에 보낸 관계 소명·지급 계좌 확인 요청과 회신. 최근 것부터")
+	@GetMapping("/clarifications")
+	List<ClarificationView> clarifications(@Parameter(description = "이 상태만 조회",
+			schema = @Schema(allowableValues = { "SENT", "ANSWERED", "EXPIRED" })) @RequestParam(required = false) String status);
+
+	@Operation(summary = "소급 발견", description = "마스터 정정 뒤 임원 승인 대상으로 드러난 전결 처리 월")
+	@GetMapping("/findings")
+	List<FindingView> findings();
+
+	@Operation(summary = "감사 이관", description = "감사팀으로 넘긴 건. 이번 검토 회차의 종료이며 후속 확인 의무는 남습니다.")
+	@GetMapping("/audit-referrals")
+	List<ReferralView> auditReferrals();
+
+	@Operation(summary = "마스터 정정 이력")
+	@GetMapping("/master-changes")
+	List<MasterChangeView> masterChanges();
+
+	@Operation(summary = "대리점 식별정보 이력", description = "대표자·주소·정산계좌의 적용 기간별 값과 출처")
+	@GetMapping("/agencies/{id}/identities")
+	List<IdentityView> identities(@Parameter(description = "대리점 ID", example = "D-041") @PathVariable String id);
 
 	@Operation(summary = "관련자 판정",
 			description = "기준일에 동일 관련자로 보는 그룹과 근거, 그룹 밖 근접 쌍. 마스터 등록 값과 실제 입금 계좌를 함께 대조합니다.")

@@ -83,6 +83,18 @@ class ConsoleApiTests {
 		assertThat(post("/api/approvals/" + requestId + "/decision", "SALES_EXECUTIVE",
 				"{\"approved\":true,\"comment\":\"합산 확인\"}")
 			.statusCode()).isEqualTo(200);
+		// D-024's deposits came from another account, so its payment is held until the agency confirms.
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(JsonPath.<List<Object>>read(get("/api/payments?status=HELD").body(), "$"))
+				.hasSize(1));
+		assertThat(JsonPath.<List<Object>>read(get("/api/payments?status=SENT").body(), "$")).hasSize(2);
+		int clarificationId = JsonPath.<Integer>read(get("/api/payments?status=HELD").body(), "$[0].clarificationId");
+		HttpResponse<String> misfit = post("/api/clarifications/" + clarificationId + "/reply", "SALES_SUPPORT",
+				"{\"outcome\":\"EXPLAINED\",\"replyText\":\"x\"}");
+		assertThat(misfit.statusCode()).isEqualTo(400);
+		assertThat(post("/api/clarifications/" + clarificationId + "/reply", "SALES_SUPPORT",
+				"{\"outcome\":\"ACCOUNT_CONFIRMED\",\"replyText\":\"등록 계좌가 맞음\"}")
+			.statusCode()).isEqualTo(200);
 		await().atMost(Duration.ofSeconds(20))
 			.untilAsserted(() -> assertThat(JsonPath.<List<Object>>read(get("/api/payments?status=SENT").body(), "$"))
 				.hasSize(3));
@@ -103,7 +115,9 @@ class ConsoleApiTests {
 		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.paths").keySet()).contains("/api/session",
 				"/api/periods", "/api/reviews", "/api/reviews/{id}", "/api/approvals/pending", "/api/payments",
 				"/api/audit", "/api/related-parties", "/api/settlements", "/api/approvals/{id}/decision",
-				"/api/approvals/decisions", "/api/payments/{id}/bank-reply", "/api/payments/bank-replies");
+				"/api/approvals/decisions", "/api/payments/{id}/bank-reply", "/api/payments/bank-replies",
+				"/api/master-changes", "/api/clarifications", "/api/clarifications/{id}/reply", "/api/findings",
+				"/api/audit-referrals", "/api/agencies/{id}/identities");
 		assertThat(JsonPath.<List<String>>read(docs, "$.paths['/api/settlements'].post.parameters[*].name"))
 			.containsExactly("X-Oneroof-Role");
 		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.components.schemas").keySet())
@@ -122,6 +136,12 @@ class ConsoleApiTests {
 		HttpResponse<String> unknownRole = post("/api/settlements", "AUDITOR", "{\"period\":\"2026-05\"}");
 		assertThat(unknownRole.statusCode()).isEqualTo(400);
 		assertThat(JsonPath.<String>read(unknownRole.body(), "$.message")).contains("AUDITOR");
+
+		HttpResponse<String> sameValue = post("/api/master-changes", "SALES_SUPPORT",
+				"{\"agencyId\":\"D-041\",\"kind\":\"ADDRESS\",\"newValue\":\"고양시 중앙로 128\","
+						+ "\"effectiveFrom\":\"2026-01-01\",\"reason\":\"x\"}");
+		assertThat(sameValue.statusCode()).isEqualTo(400);
+		assertThat(JsonPath.<String>read(sameValue.body(), "$.message")).contains("같은 값");
 
 		HttpResponse<String> missing = get("/api/reviews/999999");
 		assertThat(missing.statusCode()).isEqualTo(404);
