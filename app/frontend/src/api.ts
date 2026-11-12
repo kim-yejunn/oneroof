@@ -42,6 +42,9 @@ export interface ReviewSummary {
   decisionComment: string | null
   claimCount: number
   paidCount: number
+  round: number
+  clarificationId: number | null
+  clarificationStatus: string | null
 }
 
 export interface Claim {
@@ -121,6 +124,100 @@ export interface ReviewDetail extends ReviewSummary {
   audit: AuditEntry[]
   evidence?: Group
   history?: HistoryMonth[]
+  clarifications: Clarification[]
+  approvals: ApprovalHistory[]
+}
+
+export interface ApprovalHistory {
+  id: number
+  title: string
+  requiredRole: RoleCode
+  status: string
+  requestedOn: string
+  decidedByRole: string | null
+  decidedByName: string | null
+  decidedOn: string | null
+  decisionComment: string | null
+}
+
+export type ClarificationKind = 'RELATION_EXPLANATION' | 'ACCOUNT_CONFIRMATION'
+export type ClarificationOutcome = 'EXPLAINED' | 'ACCOUNT_CONFIRMED' | 'ACCOUNT_CHANGED' | 'NO_REPLY'
+
+export interface Clarification {
+  id: number
+  kind: ClarificationKind
+  subjectType: string
+  subjectId: string
+  agencyIds: string
+  title: string
+  question: string
+  status: 'SENT' | 'ANSWERED' | 'EXPIRED'
+  sentOn: string
+  dueOn: string
+  noticeReference: string | null
+  outcome: ClarificationOutcome | null
+  replyText: string | null
+  replyAccount: string | null
+  repliedOn: string | null
+  correlationId: string
+}
+
+export interface Finding {
+  id: number
+  period: string
+  unitKey: string
+  memberAgencyIds: string
+  rebateIds: string
+  totalKrw: number
+  limitKrw: number
+  approvedBy: string
+  requiredApprover: RoleCode
+  status: 'AWAITING_CONFIRMATION' | 'CONFIRMED' | 'REFERRED_TO_AUDIT'
+  masterChangeId: number
+  title: string
+  rationale: string
+  correlationId: string
+  approvalRequestId: number | null
+  approvalStatus: string | null
+  decisionComment: string | null
+}
+
+export interface Referral {
+  id: number
+  subjectType: string
+  subjectId: string
+  title: string
+  reason: string
+  referredBy: string
+  referredOn: string
+  status: string
+  correlationId: string
+}
+
+export type IdentityKindCode = 'REPRESENTATIVE' | 'ADDRESS' | 'BANK_ACCOUNT'
+
+export interface MasterChange {
+  id: number
+  eventId: string
+  agencyId: string
+  kind: IdentityKindCode
+  previousValue: string
+  newValue: string
+  effectiveFrom: string
+  reason: string
+  reportedBy: string
+  provenance: ProvenanceCode
+  recordedOn: string
+}
+
+export interface Identity {
+  agencyId: string
+  kind: IdentityKindCode
+  identityValue: string
+  effectiveFrom: string
+  effectiveTo: string | null
+  provenance: ProvenanceCode
+  sourceRef: string
 }
 
 export interface PendingApproval {
@@ -146,6 +243,10 @@ export interface Payment {
   bankReference: string | null
   period: string | null
   reviewId: number | null
+  payeeAccount: string | null
+  holdReason: string | null
+  clarificationId: number | null
+  clarificationStatus: string | null
 }
 
 export interface RelatedParties {

@@ -16,6 +16,7 @@ import {
   StatusBadge,
   won,
 } from '../ui.tsx'
+import { ClarificationItem } from './Exceptions.tsx'
 
 /** Everything needed to decide one review: the figures, the decision, the evidence and the trail. */
 export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleCode }) {
@@ -39,6 +40,16 @@ export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleC
         <ClaimsCard review={review} />
       </div>
       <div className="flex min-w-0 flex-col gap-4">
+        {review.clarifications.length > 0 && (
+          <Card>
+            <CardTitle aside={<ProvenanceBadge code="MOCK_REPLY" />}>소명·확인 요청</CardTitle>
+            <div className="flex flex-col gap-2.5">
+              {review.clarifications.map((item) => (
+                <ClarificationItem key={item.id} item={item} compact />
+              ))}
+            </div>
+          </Card>
+        )}
         {review.evidence && <EvidenceCard group={review.evidence} />}
         {review.history && <HistoryCard history={review.history} currentPeriod={review.period} />}
         <TimelineCard review={review} />
@@ -72,6 +83,7 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
         <StatusBadge status={review.status} />
         <Badge tone="gray">{review.period}</Badge>
         {review.relatedGroup ? <Badge tone="blue">관련자 그룹 합산</Badge> : <Badge tone="gray">단독</Badge>}
+        {review.round > 1 && <Badge tone="violet">{review.round}차 상신 · 소명 첨부</Badge>}
         <span className="text-xs text-ink-mute">검토 #{review.id}</span>
       </div>
       <h2 className="text-xl font-bold leading-snug">
@@ -103,6 +115,12 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
           : '월 한도 이내라 영업지원팀 전결 사안입니다.'}
       </p>
 
+      {STATUS_NOTICE[review.status] && (
+        <div className="mt-3">
+          <Notice tone={review.status === 'REFERRED_TO_AUDIT' ? 'error' : 'warn'}>{STATUS_NOTICE[review.status]}</Notice>
+        </div>
+      )}
+
       <div className="mt-5 border-t border-line pt-4">
         {pending ? (
           <div className="flex flex-col gap-3">
@@ -126,11 +144,26 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
                 반려
               </Button>
             </div>
+            {review.relatedGroup && review.round === 1 && (
+              <p className="text-xs leading-relaxed text-ink-mute">
+                관련자 그룹을 반려하면 바로 확정하지 않고 구성 대리점에 관계 소명을 요청합니다. 소명이 오면 다시 상신되고, 다시
+                반려하거나 회신이 없으면 감사로 넘깁니다.
+              </p>
+            )}
+            {review.relatedGroup && review.round > 1 && (
+              <p className="text-xs leading-relaxed text-ink-mute">소명을 본 뒤에도 반려하면 감사로 넘기고 장려금은 보류합니다.</p>
+            )}
             {decide.error && <Notice tone="error">{decide.error.message}</Notice>}
           </div>
         ) : review.approvalStatus ? (
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            {review.approvalStatus === 'APPROVED' ? <Badge tone="blue">승인</Badge> : <Badge tone="red">반려</Badge>}
+            {review.approvalStatus === 'APPROVED' ? (
+              <Badge tone="blue">승인</Badge>
+            ) : review.approvalStatus === 'WITHDRAWN' ? (
+              <Badge tone="gray">상신 철회</Badge>
+            ) : (
+              <Badge tone="red">반려</Badge>
+            )}
             <span className="font-semibold">{review.decidedByName}</span>
             {review.decisionComment && <span className="text-ink-soft">“{review.decisionComment}”</span>}
             <ProvenanceBadge code="MOCK_REPLY" />
@@ -141,6 +174,13 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
       </div>
     </Card>
   )
+}
+
+const STATUS_NOTICE: Record<string, string> = {
+  CLARIFICATION_REQUESTED:
+    '반려 후 관계 소명을 요청했습니다. 장려금은 지급하지 않고 회신을 기다립니다. 회신이 오면 소명을 첨부해 다시 상신합니다.',
+  REFERRED_TO_AUDIT: '감사로 넘겼습니다. 부정을 확정한 것은 아니며, 장려금은 감사 확인 전까지 보류합니다.',
+  SUPERSEDED: '마스터 정정으로 한도 단위가 바뀌어 이 검토는 대체되었습니다. 승인 요청은 철회되고 새 검토로 다시 상신했습니다.',
 }
 
 function Figure({

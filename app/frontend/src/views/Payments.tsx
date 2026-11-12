@@ -15,6 +15,7 @@ export function Payments({ role }: { role: RoleCode }) {
     onSuccess: refresh,
   })
   const waiting = payments.filter((payment) => payment.status === 'SENT')
+  const held = payments.filter((payment) => payment.status === 'HELD')
   const error = replyAll.error ?? reply.error
 
   return (
@@ -36,6 +37,14 @@ export function Payments({ role }: { role: RoleCode }) {
           </Button>
         </div>
         {error && <div className="mt-3"><Notice tone="error">{error.message}</Notice></div>}
+        {held.length > 0 && (
+          <div className="mt-3">
+            <Notice tone="warn">
+              지급 보류 {held.length}건: 실제 입금 계좌가 등록 정산계좌와 달라 대리점에 지급 계좌를 확인하고 있습니다(판단 규칙은
+              교육용 가정). 변경·예외 화면에서 대리점 회신을 입력하면 보류가 풀리고 은행으로 전송됩니다.
+            </Notice>
+          </div>
+        )}
       </Card>
 
       <Card>
@@ -51,6 +60,7 @@ export function Payments({ role }: { role: RoleCode }) {
                 <th className="py-2 font-medium">장려금</th>
                 <th className="py-2 text-right font-medium">금액</th>
                 <th className="py-2 pl-4 font-medium">상태</th>
+                <th className="py-2 font-medium">지급 계좌</th>
                 <th className="py-2 font-medium">전송 접수번호</th>
                 <th className="py-2 font-medium">은행 거래번호</th>
                 <th className="py-2 text-right font-medium">모의 회신</th>
@@ -68,9 +78,16 @@ export function Payments({ role }: { role: RoleCode }) {
                     {payment.referenceId} <Badge tone="gray">{payment.period}</Badge>
                   </td>
                   <td className="num py-2.5 text-right font-semibold">{won(payment.amountKrw)}</td>
-                  <td className="py-2.5 pl-4">
+                  <td className="py-2.5 pl-4" title={payment.holdReason ?? undefined}>
                     <StatusBadge status={payment.status} />
+                    {payment.holdReason && (
+                      <div className="mt-1 max-w-64 text-[11px] leading-snug text-ink-mute">
+                        {payment.status === 'HELD' ? '보류: ' : '보류 해제됨: '}
+                        {payment.holdReason.replace(/ — 지급 계좌 미확인.*$/, '')}
+                      </div>
+                    )}
                   </td>
+                  <td className="py-2.5 text-xs text-ink-soft">{payment.payeeAccount ?? '—'}</td>
                   <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.gatewayReference ?? '—'}</td>
                   <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.bankReference ?? '—'}</td>
                   <td className="py-2.5 text-right">

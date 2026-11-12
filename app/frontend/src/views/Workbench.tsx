@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { get, post } from '../api.ts'
 import type { PendingApproval, Period, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ROLE_LABEL, won } from '../ui.tsx'
+import { FindingDecision } from './FindingDecision.tsx'
 import { ReviewDetail } from './ReviewDetail.tsx'
 
 /** The role's to-do list on the left, the selected item's decision screen on the right. */
@@ -13,11 +14,10 @@ export function Workbench({ role }: { role: RoleCode }) {
     queryKey: ['pending', role],
     queryFn: () => get<PendingApproval[]>(`/approvals/pending?role=${role}`),
   })
-  const [picked, setSelected] = useState<number | null>(null)
+  const [picked, setPicked] = useState<PendingApproval | null>(null)
 
   // Follow the user's pick while it is still waiting; once it is decided, move on to the next item.
-  const selectable = pending.filter((item) => item.subjectType === 'RebateReview').map((item) => Number(item.subjectId))
-  const selected = picked !== null && selectable.includes(picked) ? picked : (selectable[0] ?? picked)
+  const selected = (picked && pending.find((item) => item.id === picked.id)) ?? pending[0] ?? picked
 
   const submit = useMutation({
     mutationFn: (period: string) => post<{ accepted: boolean }>('/settlements', role, { period }),
@@ -73,21 +73,32 @@ export function Workbench({ role }: { role: RoleCode }) {
           ) : (
             <ul className="-mx-2 flex flex-col">
               {pending.map((item) => {
-                const reviewId = Number(item.subjectId)
-                const active = reviewId === selected
+                const active = item.id === selected?.id
+                const finding = item.subjectType === 'RetrospectiveFinding'
+                const resubmitted = item.title.startsWith('[재상신')
+                const label = finding
+                  ? `${item.period} ${item.title.match(/RPG-D-\d+/)?.[0] ?? ''}`
+                  : item.title.replace(/^.*— /, '').replace(/ [\d,]+원$/, '')
                 return (
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => setSelected(reviewId)}
+                      onClick={() => setPicked(item)}
                       className={`flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors ${active ? 'bg-brand-soft' : 'hover:bg-fill'}`}
                     >
-                      <span className="flex items-center gap-1.5">
-                        {item.exceedsLimit ? <Badge tone="red">한도 초과</Badge> : <Badge tone="gray">한도 이내</Badge>}
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {finding ? (
+                          <Badge tone="orange">사후 확인</Badge>
+                        ) : item.exceedsLimit ? (
+                          <Badge tone="red">한도 초과</Badge>
+                        ) : (
+                          <Badge tone="gray">한도 이내</Badge>
+                        )}
                         {item.relatedGroup && <Badge tone="blue">관련자 그룹</Badge>}
+                        {resubmitted && <Badge tone="violet">소명 첨부 재상신</Badge>}
                       </span>
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-semibold">{item.title.replace(/^.*— /, '').replace(/ [\d,]+원$/, '')}</span>
+                        <span className="truncate text-sm font-semibold">{label}</span>
                         <span className="num shrink-0 text-sm font-bold">{won(item.amountKrw)}</span>
                       </span>
                     </button>
@@ -100,8 +111,10 @@ export function Workbench({ role }: { role: RoleCode }) {
       </div>
 
       <div className="min-h-0 overflow-y-auto pb-6">
-        {selected !== null ? (
-          <ReviewDetail reviewId={selected} role={role} />
+        {selected?.subjectType === 'RetrospectiveFinding' ? (
+          <FindingDecision findingId={Number(selected.subjectId)} role={role} />
+        ) : selected ? (
+          <ReviewDetail reviewId={Number(selected.subjectId)} role={role} />
         ) : (
           <Card>
             <Empty>왼쪽에서 처리할 일을 선택하세요.</Empty>

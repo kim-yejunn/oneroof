@@ -1,23 +1,25 @@
 import { useQuery } from '@tanstack/react-query'
-import { Banknote, ClipboardCheck, Inbox, Network, ScrollText } from 'lucide-react'
+import { Banknote, ClipboardCheck, Inbox, Network, ScrollText, ShieldAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { get } from './api.ts'
-import type { Payment, PendingApproval, RoleCode, Session } from './api.ts'
+import type { Clarification, Payment, PendingApproval, RoleCode, Session } from './api.ts'
 import { ProvenanceBadge, won } from './ui.tsx'
 import { AuditLog } from './views/AuditLog.tsx'
+import { Exceptions } from './views/Exceptions.tsx'
 import { Payments } from './views/Payments.tsx'
 import { RelatedParties } from './views/RelatedParties.tsx'
 import { Settlements } from './views/Settlements.tsx'
 import { Workbench } from './views/Workbench.tsx'
 
-type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'audit'
+type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'exceptions' | 'audit'
 
 const NAV: { view: View; label: string; icon: LucideIcon }[] = [
   { view: 'workbench', label: '처리할 일', icon: Inbox },
   { view: 'settlements', label: '정산 현황', icon: ClipboardCheck },
   { view: 'related', label: '관련자', icon: Network },
   { view: 'payments', label: '지급', icon: Banknote },
+  { view: 'exceptions', label: '변경·예외', icon: ShieldAlert },
   { view: 'audit', label: '감사 로그', icon: ScrollText },
 ]
 
@@ -45,6 +47,11 @@ export default function App() {
     queryFn: () => get<Payment[]>('/payments?status=SENT'),
   })
 
+  const { data: openClarifications = [] } = useQuery({
+    queryKey: ['clarifications', 'SENT'],
+    queryFn: () => get<Clarification[]>('/clarifications?status=SENT'),
+  })
+
   const setRole = (next: RoleCode) => {
     setRoleState(next)
     try {
@@ -53,7 +60,11 @@ export default function App() {
       // The choice simply is not remembered when storage is unavailable.
     }
   }
-  const counts: Partial<Record<View, number>> = { workbench: pending.length, payments: waiting.length }
+  const counts: Partial<Record<View, number>> = {
+    workbench: pending.length,
+    payments: waiting.length,
+    exceptions: openClarifications.length,
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -108,7 +119,7 @@ export default function App() {
             </button>
           ))}
           <p className="mt-auto px-1 text-[11px] leading-relaxed text-ink-mute">
-            역할 전환과 은행 회신은 시연을 위한 모의 처리입니다. 원본 데이터는 수정하지 않습니다.
+            역할 전환, 은행·대리점 회신은 시연을 위한 모의 처리입니다. 원본 데이터는 수정하지 않습니다.
           </p>
         </nav>
         <main className="min-h-0 min-w-0 flex-1 py-4 pr-6">
@@ -116,6 +127,7 @@ export default function App() {
           {view === 'settlements' && <Settlements role={role} />}
           {view === 'related' && <RelatedParties />}
           {view === 'payments' && <Payments role={role} />}
+          {view === 'exceptions' && <Exceptions role={role} />}
           {view === 'audit' && <AuditLog />}
         </main>
       </div>

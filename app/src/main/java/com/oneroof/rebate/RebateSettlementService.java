@@ -137,7 +137,7 @@ public class RebateSettlementService {
 				}
 				else if (review.isRelatedGroup()) {
 					referReviewToAudit(review, reviewClaims,
-							"소명 회신을 첨부해 재상신했으나 %s 이 다시 반려함%s".formatted(
+							"소명 회신을 첨부해 재상신했으나 %s이 다시 반려함%s".formatted(
 									Role.valueOf(decision.decidedByRole()).label(),
 									decision.comment().isBlank() ? "" : ": " + decision.comment()),
 							decision.correlationId());
@@ -234,14 +234,14 @@ public class RebateSettlementService {
 		if (decision.approved()) {
 			finding.confirm();
 			audit(Role.SYSTEM, "FINDING_CONFIRMED", RetrospectiveFinding.SUBJECT_TYPE, decision.subjectId(),
-					"%s 이 전결 처리분을 사후 확인함%s".formatted(Role.valueOf(decision.decidedByRole()).label(),
+					"%s이 전결 처리분을 사후 확인함%s".formatted(Role.valueOf(decision.decidedByRole()).label(),
 							decision.comment().isBlank() ? "" : ": " + decision.comment()),
 					decision.correlationId());
 			return;
 		}
 		finding.referToAudit();
 		this.auditLog.refer(new AuditReferral.Referral(RetrospectiveFinding.SUBJECT_TYPE, decision.subjectId(),
-				finding.getTitle(), "%s 이 사후 확인을 거절함%s".formatted(Role.valueOf(decision.decidedByRole()).label(),
+				finding.getTitle(), "%s이 사후 확인을 거절함%s".formatted(Role.valueOf(decision.decidedByRole()).label(),
 						decision.comment().isBlank() ? "" : ": " + decision.comment()),
 				Role.SYSTEM.name(), decision.correlationId()));
 	}

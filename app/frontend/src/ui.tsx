@@ -57,6 +57,32 @@ const STATUS: Record<string, { label: string; tone: Tone }> = {
   REQUESTED: { label: '지시 생성', tone: 'gray' },
   SENT: { label: '은행 회신 대기', tone: 'orange' },
   FAILED: { label: '이체 실패', tone: 'red' },
+  HELD: { label: '지급 보류', tone: 'violet' },
+  CLARIFICATION_REQUESTED: { label: '소명 대기', tone: 'violet' },
+  REFERRED_TO_AUDIT: { label: '감사 이관', tone: 'red' },
+  SUPERSEDED: { label: '재분류로 대체', tone: 'gray' },
+  HELD_FOR_AUDIT: { label: '감사 중 보류', tone: 'red' },
+  WITHDRAWN: { label: '상신 철회', tone: 'gray' },
+  AWAITING_CONFIRMATION: { label: '사후 확인 대기', tone: 'orange' },
+  CONFIRMED: { label: '사후 확인', tone: 'green' },
+  ANSWERED: { label: '회신 받음', tone: 'green' },
+  EXPIRED: { label: '기한 경과', tone: 'red' },
+  OPEN: { label: '감사 중', tone: 'red' },
+}
+
+export const KIND_LABEL: Record<string, string> = {
+  REPRESENTATIVE: '대표자',
+  ADDRESS: '주소',
+  BANK_ACCOUNT: '정산계좌',
+  RELATION_EXPLANATION: '관계 소명',
+  ACCOUNT_CONFIRMATION: '지급 계좌 확인',
+}
+
+export const OUTCOME_LABEL: Record<string, string> = {
+  EXPLAINED: '소명 제출',
+  ACCOUNT_CONFIRMED: '등록 계좌 확인',
+  ACCOUNT_CHANGED: '계좌 변경 회신',
+  NO_REPLY: '기한 내 무응답',
 }
 
 export function StatusBadge({ status }: { status: string | null }) {
@@ -133,6 +159,7 @@ export const ROLE_LABEL: Record<string, string> = {
   SALES_EXECUTIVE: '영업임원',
   SYSTEM: '시스템',
   'EXTERNAL:BANK': '은행(모의)',
+  'EXTERNAL:AGENCY': '대리점(모의)',
 }
 
 export const ACTION_LABEL: Record<string, string> = {
@@ -153,4 +180,24 @@ export const ACTION_LABEL: Record<string, string> = {
   PAYMENT_CONFIRMED: '이체 완료 회신',
   PAYMENT_FAILED: '이체 실패 회신',
   REVIEW_PAID: '지급 완료',
+  PAYMENT_HELD: '지급 보류',
+  PAYMENT_RELEASED: '보류 해제',
+  PAYMENT_RELEASE_IGNORED: '보류 해제 생략',
+  PAYMENT_REPLY_IGNORED: '늦은 회신 무시',
+  CLARIFICATION_REQUESTED: '소명 요청 결정',
+  CLARIFICATION_SENT: '요청 발송',
+  CLARIFICATION_ANSWERED: '대리점 회신',
+  CLARIFICATION_EXPIRED: '회신 기한 경과',
+  CLARIFICATION_REPLY_IGNORED: '회신 무시',
+  CLARIFICATION_RESULT_IGNORED: '소명 결과 무시',
+  REVIEW_RESUBMITTED: '재상신',
+  AUDIT_REFERRED: '감사 이관',
+  MASTER_CHANGED: '마스터 정정',
+  MASTER_CHANGE_REJECTED: '정정 거부',
+  MASTER_CHANGE_ASSESSED: '정정 영향 판정',
+  REVIEW_SUPERSEDED: '검토 대체',
+  APPROVAL_WITHDRAWN: '상신 철회',
+  FINDING_OPENED: '소급 발견',
+  FINDING_CONFIRMED: '사후 확인',
+  DECISION_IGNORED: '결정 무시',
 }
