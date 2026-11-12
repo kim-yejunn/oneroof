@@ -71,7 +71,7 @@ public class ApprovalRequest {
 	protected ApprovalRequest() {
 	}
 
-	ApprovalRequest(ApprovalRequestSubmitted submitted, LocalDate requestedOn) {
+	ApprovalRequest(ApprovalRequestsSubmitted.Request submitted, LocalDate requestedOn) {
 		this.subjectType = submitted.subjectType();
 		this.subjectId = submitted.subjectId();
 		this.requiredRole = Role.valueOf(submitted.requiredRole());

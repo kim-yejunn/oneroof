@@ -1,5 +1,6 @@
 package com.oneroof.approval;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.oneroof.audit.AuditLog;
@@ -34,35 +35,52 @@ public class ApprovalService {
 		this.clock = clock;
 	}
 
+	/** Stores a batch of requests in one transaction. */
 	@ApplicationModuleListener
-	void on(ApprovalRequestSubmitted submitted) {
-		ApprovalRequest request = this.requests.save(new ApprovalRequest(submitted, this.clock.today()));
-		this.auditLog.record(new AuditRecord(Role.SYSTEM.name(), "APPROVAL_REQUESTED", SUBJECT,
-				String.valueOf(request.getId()),
-				"%s 에게 상신: %s".formatted(request.getRequiredRole().label(), request.getTitle()),
-				Provenance.CALCULATED, submitted.correlationId()));
+	void on(ApprovalRequestsSubmitted submitted) {
+		List<ApprovalRequest> saved = this.requests.saveAll(submitted.requests()
+			.stream()
+			.map((request) -> new ApprovalRequest(request, this.clock.today()))
+			.toList());
+		for (ApprovalRequest request : saved) {
+			this.auditLog.record(new AuditRecord(Role.SYSTEM.name(), "APPROVAL_REQUESTED", SUBJECT,
+					String.valueOf(request.getId()),
+					"%s 에게 상신: %s".formatted(request.getRequiredRole().label(), request.getTitle()),
+					Provenance.CALCULATED, request.getCorrelationId()));
+		}
 	}
 
 	@Transactional
 	public ApprovalRequest decide(long requestId, Role actorRole, String actorName, boolean approved, String comment) {
-		ApprovalRequest request = this.requests.findById(requestId)
-			.orElseThrow(() -> new IllegalArgumentException("승인 요청 #%d 이 없음".formatted(requestId)));
-		request.decide(actorRole, actorName, approved, comment, this.clock.today());
-		this.auditLog.record(new AuditRecord(actorRole.name(), approved ? "APPROVAL_GRANTED" : "APPROVAL_REJECTED",
-				SUBJECT, String.valueOf(requestId),
-				"%s(%s) %s: %s%s".formatted(actorRole.label(), actorName, approved ? "승인" : "반려", request.getTitle(),
-						comment == null || comment.isBlank() ? "" : " — " + comment),
-				Provenance.MOCK_REPLY, request.getCorrelationId()));
-		this.events.publishEvent(new ApprovalDecided(requestId, request.getSubjectType(), request.getSubjectId(),
-				approved, actorRole.name(), comment == null ? "" : comment, request.getCorrelationId()));
-		return request;
+		return decideAll(List.of(requestId), actorRole, actorName, approved, comment).get(0);
 	}
 
-	/** Decides several requests with one action, for example the sales support team clearing its routine queue. */
+	/**
+	 * Decides several requests with one action, for example the sales support team clearing its
+	 * routine queue. All or nothing: if the role lacks authority over any request, none is decided.
+	 * The outcome is announced as one event.
+	 */
 	@Transactional
 	public List<ApprovalRequest> decideAll(List<Long> requestIds, Role actorRole, String actorName, boolean approved,
 			String comment) {
-		return requestIds.stream().map((id) -> decide(id, actorRole, actorName, approved, comment)).toList();
+		String note = comment == null ? "" : comment;
+		List<ApprovalRequest> decided = new ArrayList<>(requestIds.size());
+		List<ApprovalsDecided.Decision> decisions = new ArrayList<>(requestIds.size());
+		for (Long requestId : requestIds) {
+			ApprovalRequest request = this.requests.findById(requestId)
+				.orElseThrow(() -> new IllegalArgumentException("승인 요청 #%d 이 없음".formatted(requestId)));
+			request.decide(actorRole, actorName, approved, comment, this.clock.today());
+			this.auditLog.record(new AuditRecord(actorRole.name(), approved ? "APPROVAL_GRANTED" : "APPROVAL_REJECTED",
+					SUBJECT, String.valueOf(requestId),
+					"%s(%s) %s: %s%s".formatted(actorRole.label(), actorName, approved ? "승인" : "반려", request.getTitle(),
+							note.isBlank() ? "" : " — " + note),
+					Provenance.MOCK_REPLY, request.getCorrelationId()));
+			decided.add(request);
+			decisions.add(new ApprovalsDecided.Decision(requestId, request.getSubjectType(), request.getSubjectId(),
+					approved, actorRole.name(), note, request.getCorrelationId()));
+		}
+		this.events.publishEvent(new ApprovalsDecided(decisions));
+		return decided;
 	}
 
 	@Transactional(readOnly = true)

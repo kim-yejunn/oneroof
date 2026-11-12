@@ -1,6 +1,7 @@
 package com.oneroof.intake;
 
 import java.time.YearMonth;
+import java.util.List;
 
 import com.oneroof.audit.AuditLog;
 import com.oneroof.audit.AuditRecord;
@@ -40,15 +41,33 @@ public class IntakeService {
 		return new Receipt(eventId, true);
 	}
 
+	/**
+	 * Accepts a bank reply covering one or many instructions. Only the reply itself is stored here,
+	 * in one transaction; applying it to each instruction happens afterwards, so the sender gets an
+	 * answer at once however large the reply is.
+	 */
 	@Transactional
-	public Receipt receivePaymentResult(String eventId, long instructionId, boolean succeeded, String bankReference) {
-		String summary = "지급 지시 #%d 은행 회신: %s (%s)".formatted(instructionId, succeeded ? "이체 완료" : "이체 실패",
-				bankReference);
+	public Receipt receivePaymentResults(String eventId, List<PaymentResultsReceived.Result> results) {
+		if (results.isEmpty()) {
+			throw new IllegalArgumentException("은행 회신에 결과가 없음");
+		}
+		long succeeded = results.stream().filter(PaymentResultsReceived.Result::succeeded).count();
+		String summary = results.size() == 1
+				? "지급 지시 #%d 은행 회신: %s (%s)".formatted(results.get(0).instructionId(),
+						results.get(0).succeeded() ? "이체 완료" : "이체 실패", results.get(0).bankReference())
+				: "은행 일괄 회신 %d건: 이체 완료 %d, 이체 실패 %d".formatted(results.size(), succeeded,
+						results.size() - succeeded);
 		if (!accept(eventId, "PAYMENT_RESULT", summary, "EXTERNAL:BANK", Provenance.MOCK_REPLY)) {
 			return new Receipt(eventId, false);
 		}
-		this.events.publishEvent(new PaymentResultReceived(eventId, instructionId, succeeded, bankReference));
+		this.events.publishEvent(new PaymentResultsReceived(eventId, List.copyOf(results)));
 		return new Receipt(eventId, true);
+	}
+
+	@Transactional
+	public Receipt receivePaymentResult(String eventId, long instructionId, boolean succeeded, String bankReference) {
+		return receivePaymentResults(eventId,
+				List.of(new PaymentResultsReceived.Result(instructionId, succeeded, bankReference)));
 	}
 
 	private boolean accept(String eventId, String eventType, String summary, String actorRole, Provenance provenance) {

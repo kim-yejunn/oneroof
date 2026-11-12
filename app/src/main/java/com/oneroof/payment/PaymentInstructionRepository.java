@@ -1,13 +1,15 @@
 package com.oneroof.payment;
 
+import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
 interface PaymentInstructionRepository extends JpaRepository<PaymentInstruction, Long> {
 
-	Optional<PaymentInstruction> findByReferenceTypeAndReferenceId(String referenceType, String referenceId);
+	List<PaymentInstruction> findByReferenceTypeAndReferenceIdIn(String referenceType, Collection<String> referenceIds);
+
+	List<PaymentInstruction> findByIdInOrderByIdAsc(Collection<Long> ids);
 
 	List<PaymentInstruction> findByCorrelationIdOrderByIdAsc(String correlationId);
 

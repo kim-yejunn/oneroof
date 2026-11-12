@@ -12,6 +12,7 @@ import com.oneroof.approval.ApprovalRequest;
 import com.oneroof.approval.ApprovalService;
 import com.oneroof.approval.AuthorityViolationException;
 import com.oneroof.intake.IntakeService;
+import com.oneroof.intake.PaymentResultsReceived;
 import com.oneroof.intake.Receipt;
 import com.oneroof.payment.PaymentInstruction;
 import com.oneroof.payment.PaymentService;
@@ -118,7 +119,31 @@ class SettlementFlowTests {
 		assertThat(count("rebate_claim WHERE period_ym = '2026-06' AND settlement_status = 'PAYMENT_REQUESTED'"))
 			.isEqualTo(37);
 
-		// 7. Every step left a trace tied to the submitting event, and no event is left undelivered.
+		// 7. The bank answers all 37 in one bulk reply, applied in the background in one transaction.
+		List<PaymentResultsReceived.Result> bulk = this.payments.awaitingBankReply()
+			.stream()
+			.map((instruction) -> new PaymentResultsReceived.Result(instruction.getId(), true, "BULK-" + instruction.getId()))
+			.toList();
+		assertThat(this.intake.receivePaymentResults("EVT-BANK-BULK-1", bulk).accepted()).isTrue();
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(this.settlement.reviewsOf(JUNE))
+				.allMatch((review) -> review.getStatus() == ReviewStatus.PAID));
+		assertThat(count("rebate_claim WHERE period_ym = '2026-06' AND settlement_status = 'PAID'")).isEqualTo(40);
+
+		// 8. A late reply for an instruction that is already paid is recorded and skipped, not failed.
+		long alreadyPaid = groupInstructions.get(0).getId();
+		this.intake.receivePaymentResult("EVT-BANK-LATE", alreadyPaid, false, "LATE");
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(count("audit_log WHERE action = 'PAYMENT_REPLY_IGNORED'")).isEqualTo(1));
+		assertThat(count("payment_instruction WHERE status = 'PAID'")).isEqualTo(40);
+
+		// 9. Bulk actions travel as batch events: the whole month needs a handful of stored events,
+		// not one or more per claim.
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(count("event_publication WHERE completion_date IS NULL")).isZero());
+		assertThat(count("event_publication")).isLessThan(20);
+
+		// 10. Every step left a trace tied to the submitting event, and no event is left undelivered.
 		assertThat(count("audit_log WHERE correlation_id = '" + EVENT_ID + "' AND action = 'APPROVAL_GRANTED'"))
 			.isEqualTo(38);
 		assertThat(count("audit_log WHERE correlation_id = '" + EVENT_ID + "' AND action = 'PAYMENT_SENT'"))

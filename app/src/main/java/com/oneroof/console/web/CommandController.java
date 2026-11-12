@@ -2,6 +2,7 @@ package com.oneroof.console.web;
 
 import java.time.YearMonth;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.oneroof.approval.ApprovalRequest;
 import com.oneroof.approval.ApprovalService;
@@ -15,8 +16,8 @@ import com.oneroof.console.api.Commands.ReceiptView;
 import com.oneroof.console.api.Commands.SettlementRequest;
 import com.oneroof.console.api.ConsoleCommandApi;
 import com.oneroof.intake.IntakeService;
+import com.oneroof.intake.PaymentResultsReceived;
 import com.oneroof.intake.Receipt;
-import com.oneroof.payment.PaymentInstruction;
 import com.oneroof.payment.PaymentService;
 import com.oneroof.shared.Role;
 import org.springframework.web.bind.annotation.RestController;
@@ -63,14 +64,27 @@ class CommandController implements ConsoleCommandApi {
 		return receipt(this.intake.receivePaymentResult("EVT-BANK-" + id, id, request.succeeded(), bankReference(id)));
 	}
 
+	/**
+	 * Replies for every instruction waiting at the bank as one bulk reply. The reply is only stored
+	 * here; it is applied in the background, so the call returns at once. The event id is derived
+	 * from the instructions covered, so repeating the same reply is harmless.
+	 */
 	@Override
 	public BankRepliesResult bankReplies() {
-		List<PaymentInstruction> waiting = this.payments.awaitingBankReply();
-		for (PaymentInstruction instruction : waiting) {
-			long id = instruction.getId();
-			this.intake.receivePaymentResult("EVT-BANK-" + id, id, true, bankReference(id));
+		List<PaymentResultsReceived.Result> results = this.payments.awaitingBankReply()
+			.stream()
+			.map((instruction) -> new PaymentResultsReceived.Result(instruction.getId(), true,
+					bankReference(instruction.getId())))
+			.toList();
+		if (results.isEmpty()) {
+			return new BankRepliesResult(0);
 		}
-		return new BankRepliesResult(waiting.size());
+		String covered = results.stream()
+			.map((result) -> String.valueOf(result.instructionId()))
+			.collect(Collectors.joining(","));
+		this.intake.receivePaymentResults("EVT-BANK-BULK-" + Integer.toHexString(covered.hashCode()) + "-"
+				+ results.size(), results);
+		return new BankRepliesResult(results.size());
 	}
 
 	private static Role actor(String role) {

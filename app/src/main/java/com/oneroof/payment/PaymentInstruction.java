@@ -56,7 +56,7 @@ public class PaymentInstruction {
 	protected PaymentInstruction() {
 	}
 
-	PaymentInstruction(PaymentRequested requested, LocalDate requestedOn) {
+	PaymentInstruction(PaymentsRequested.Payment requested, LocalDate requestedOn) {
 		this.referenceType = requested.referenceType();
 		this.referenceId = requested.referenceId();
 		this.agencyId = requested.agencyId();
