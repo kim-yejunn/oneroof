@@ -18,11 +18,10 @@ export function FindingDecision({ findingId, role }: { findingId: number; role: 
   const decide = useMutation({
     mutationFn: (approved: boolean) =>
       post(`/approvals/${finding?.approvalRequestId}/decision`, role, { approved, comment }),
-    onSuccess: () => {
-      setComment('')
-      void queryClient.invalidateQueries()
-    },
+    onSuccess: () => queryClient.invalidateQueries(),
   })
+  // Sent once: stays locked until the item leaves the queue and the workbench moves on.
+  const locked = decide.isPending || decide.isSuccess
 
   if (!finding) {
     return <Empty>불러오는 중…</Empty>
@@ -69,14 +68,15 @@ export function FindingDecision({ findingId, role }: { findingId: number; role: 
                     className="h-10 rounded-xl border border-line px-3.5 text-sm outline-none focus:border-brand"
                   />
                   <div className="flex gap-2">
-                    <Button size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+                    <Button size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(true)}>
                       사후 확인
                     </Button>
-                    <Button kind="danger" size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
+                    <Button kind="danger" size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(false)}>
                       확인 거절 · 감사 이관
                     </Button>
                   </div>
-                  {decide.error && <Notice tone="error">{decide.error.message}</Notice>}
+                  {decide.isSuccess && <Notice tone="info">결정을 보냈습니다. 반영되는 중입니다…</Notice>}
+                {decide.error && <Notice tone="error">{decide.error.message}</Notice>}
                 </div>
               ) : (
                 <p className="text-sm text-ink-soft">

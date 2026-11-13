@@ -79,10 +79,10 @@ function MasterChangeForm({ role }: { role: RoleCode }) {
   })
   const report = useMutation({
     mutationFn: () => post<{ accepted: boolean }>('/master-changes', role, { agencyId, kind, newValue, effectiveFrom, reason }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries()
       setNewValue('')
       setReason('')
-      void queryClient.invalidateQueries()
     },
   })
   const fillExample = () => {
@@ -239,9 +239,9 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
         replyText: outcome === 'NO_REPLY' || outcome === 'OFFSET_ACCEPTED' ? '' : text,
         replyAccount: outcome === 'ACCOUNT_CHANGED' ? account : null,
       }),
-    onSuccess: () => void queryClient.invalidateQueries(),
+    onSuccess: () => queryClient.invalidateQueries(),
   })
-  const waiting = item.status === 'SENT'
+  const waiting = item.status === 'SENT' && !reply.isSuccess
 
   return (
     <div className={`rounded-xl border p-3.5 ${waiting ? 'border-violet/40' : 'border-line'}`}>
@@ -273,6 +273,9 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
       {item.aiSummary && <Interpretation item={item} />}
       {item.outcome && item.outcome !== 'NO_REPLY' && !item.aiSummary && (
         <p className="mt-2 text-xs text-ink-mute">회신 해석 중…</p>
+      )}
+      {reply.isSuccess && item.status === 'SENT' && (
+        <p className="mt-2 text-xs font-semibold text-brand-strong">회신을 보냈습니다. 반영되는 중입니다…</p>
       )}
       {waiting && (
         <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">

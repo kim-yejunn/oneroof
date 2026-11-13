@@ -36,7 +36,7 @@ export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleC
     <div className="@container">
       <div className="grid grid-cols-1 gap-4 @5xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-4">
-        <DecisionCard review={review} role={role} />
+        <DecisionCard key={review.approvalRequestId ?? 0} review={review} role={role} />
         <ClaimsCard review={review} />
       </div>
       <div className="flex min-w-0 flex-col gap-4">
@@ -65,11 +65,10 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
   const decide = useMutation({
     mutationFn: (approved: boolean) =>
       post(`/approvals/${review.approvalRequestId}/decision`, role, { approved, comment }),
-    onSuccess: () => {
-      setComment('')
-      void queryClient.invalidateQueries()
-    },
+    onSuccess: () => queryClient.invalidateQueries(),
   })
+  // Sent once: stays locked until the review moves on (the card is keyed by its approval request).
+  const locked = decide.isPending || decide.isSuccess
 
   const over = review.totalKrw - review.limitKrw
   const ratio = Math.min(100, Math.round((review.limitKrw / Math.max(review.totalKrw, review.limitKrw)) * 100))
@@ -137,13 +136,14 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
               className="h-10 rounded-xl border border-line px-3.5 text-sm outline-none focus:border-brand"
             />
             <div className="flex gap-2">
-              <Button size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+              <Button size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(true)}>
                 승인
               </Button>
-              <Button kind="danger" size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
+              <Button kind="danger" size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(false)}>
                 반려
               </Button>
             </div>
+            {decide.isSuccess && <Notice tone="info">결정을 보냈습니다. 반영되는 중입니다…</Notice>}
             {review.relatedGroup && review.round === 1 && (
               <p className="text-xs leading-relaxed text-ink-mute">
                 관련자 그룹을 반려하면 바로 확정하지 않고 구성 대리점에 관계 소명을 요청합니다. 소명이 오면 다시 상신되고, 다시

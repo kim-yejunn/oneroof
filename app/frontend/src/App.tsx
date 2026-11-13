@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { Banknote, ClipboardCheck, Inbox, Landmark, Network, ScrollText, ShieldAlert } from 'lucide-react'
+import { Banknote, ClipboardCheck, Clapperboard, Inbox, Landmark, Network, ScrollText, ShieldAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useState } from 'react'
 import { get } from './api.ts'
 import type { Clarification, Payment, PendingApproval, RoleCode, Session } from './api.ts'
 import { ProvenanceBadge, won } from './ui.tsx'
 import { AuditLog } from './views/AuditLog.tsx'
+import { DemoGuide } from './views/DemoGuide.tsx'
 import { Exceptions } from './views/Exceptions.tsx'
 import { Payments } from './views/Payments.tsx'
 import { Receivables } from './views/Receivables.tsx'
@@ -13,7 +14,7 @@ import { RelatedParties } from './views/RelatedParties.tsx'
 import { Settlements } from './views/Settlements.tsx'
 import { Workbench } from './views/Workbench.tsx'
 
-type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'receivables' | 'exceptions' | 'audit'
+type View = 'workbench' | 'settlements' | 'related' | 'payments' | 'receivables' | 'exceptions' | 'audit' | 'demo'
 
 const NAV: { view: View; label: string; icon: LucideIcon }[] = [
   { view: 'workbench', label: '처리할 일', icon: Inbox },
@@ -23,6 +24,7 @@ const NAV: { view: View; label: string; icon: LucideIcon }[] = [
   { view: 'receivables', label: '채권·상계', icon: Landmark },
   { view: 'exceptions', label: '변경·예외', icon: ShieldAlert },
   { view: 'audit', label: '감사 로그', icon: ScrollText },
+  { view: 'demo', label: '시연 도우미', icon: Clapperboard },
 ]
 
 const ROLE_KEY = 'oneroof.role'
@@ -131,13 +133,14 @@ export default function App() {
           </p>
         </nav>
         <main className="min-h-0 min-w-0 flex-1 py-4 pr-6">
-          {view === 'workbench' && <Workbench role={role} />}
+          {view === 'workbench' && <Workbench key={role} role={role} />}
           {view === 'settlements' && <Settlements role={role} />}
           {view === 'related' && <RelatedParties />}
           {view === 'payments' && <Payments role={role} />}
           {view === 'receivables' && <Receivables role={role} />}
           {view === 'exceptions' && <Exceptions role={role} />}
           {view === 'audit' && <AuditLog />}
+          {view === 'demo' && <DemoGuide role={role} />}
         </main>
       </div>
     </div>

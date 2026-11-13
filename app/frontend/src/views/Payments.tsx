@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { get, post } from '../api.ts'
 import type { Payment, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ProvenanceBadge, StatusBadge, won } from '../ui.tsx'
@@ -7,14 +8,28 @@ import { Badge, Button, Card, CardTitle, Empty, Notice, ProvenanceBadge, StatusB
 export function Payments({ role }: { role: RoleCode }) {
   const queryClient = useQueryClient()
   const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: () => get<Payment[]>('/payments') })
-  const refresh = () => void queryClient.invalidateQueries()
-  const replyAll = useMutation({ mutationFn: () => post('/payments/bank-replies', role, {}), onSuccess: refresh })
+  // Bank replies are applied in the background, so a row stays SENT for a moment after it was answered.
+  // Rows already answered stay locked until their status changes.
+  const [answered, setAnswered] = useState<ReadonlySet<number>>(new Set())
+  const markAnswered = (ids: number[]) => setAnswered((previous) => new Set([...previous, ...ids]))
+  const refresh = () => queryClient.invalidateQueries()
+  const replyAll = useMutation({
+    mutationFn: (ids: number[]) => post('/payments/bank-replies', role, {}).then(() => ids),
+    onSuccess: (ids) => {
+      markAnswered(ids)
+      return refresh()
+    },
+  })
   const reply = useMutation({
     mutationFn: ({ id, succeeded }: { id: number; succeeded: boolean }) =>
-      post(`/payments/${id}/bank-reply`, role, { succeeded }),
-    onSuccess: refresh,
+      post(`/payments/${id}/bank-reply`, role, { succeeded }).then(() => id),
+    onSuccess: (id) => {
+      markAnswered([id])
+      return refresh()
+    },
   })
-  const waiting = payments.filter((payment) => payment.status === 'SENT')
+  const waiting = payments.filter((payment) => payment.status === 'SENT' && !answered.has(payment.id))
+  const applying = payments.filter((payment) => payment.status === 'SENT' && answered.has(payment.id)).length
   const held = payments.filter((payment) => payment.status === 'HELD')
   const offsetReview = payments.filter((payment) => payment.status === 'OFFSET_REVIEW' || payment.status === 'OFFSET_DISPUTED')
   const error = replyAll.error ?? reply.error
@@ -33,10 +48,14 @@ export function Payments({ role }: { role: RoleCode }) {
               바꿉니다.
             </p>
           </div>
-          <Button disabled={waiting.length === 0 || replyAll.isPending} onClick={() => replyAll.mutate()}>
-            대기 {waiting.length}건 이체 완료 회신
+          <Button
+            disabled={waiting.length === 0 || replyAll.isPending || reply.isPending}
+            onClick={() => replyAll.mutate(waiting.map((payment) => payment.id))}
+          >
+            {replyAll.isPending ? '회신 보내는 중…' : `대기 ${waiting.length}건 이체 완료 회신`}
           </Button>
         </div>
+        {applying > 0 && <p className="mt-2 text-xs font-semibold text-brand-strong">은행 회신 {applying}건 반영 중…</p>}
         {error && <div className="mt-3"><Notice tone="error">{error.message}</Notice></div>}
         {offsetReview.length > 0 && (
           <div className="mt-3">
@@ -107,12 +126,15 @@ export function Payments({ role }: { role: RoleCode }) {
                   <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.gatewayReference ?? '—'}</td>
                   <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.bankReference ?? '—'}</td>
                   <td className="py-2.5 text-right">
-                    {payment.status === 'SENT' && (
+                    {payment.status === 'SENT' && answered.has(payment.id) && (
+                      <span className="text-xs text-ink-mute">반영 중…</span>
+                    )}
+                    {payment.status === 'SENT' && !answered.has(payment.id) && (
                       <span className="inline-flex gap-1.5">
-                        <Button size="sm" kind="secondary" disabled={reply.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: true })}>
+                        <Button size="sm" kind="secondary" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: true })}>
                           완료
                         </Button>
-                        <Button size="sm" kind="danger" disabled={reply.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: false })}>
+                        <Button size="sm" kind="danger" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: false })}>
                           실패
                         </Button>
                       </span>

@@ -27,11 +27,10 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
   const notice = clarifications.find((item) => item.id === payment?.clarificationId && item.kind === 'OFFSET_NOTICE')
   const decide = useMutation({
     mutationFn: (approved: boolean) => post(`/approvals/${request.id}/decision`, role, { approved, comment }),
-    onSuccess: () => {
-      setComment('')
-      void queryClient.invalidateQueries()
-    },
+    onSuccess: () => queryClient.invalidateQueries(),
   })
+  // Sent once: stays locked until the item leaves the queue and the workbench moves on.
+  const locked = decide.isPending || decide.isSuccess
 
   if (!payment) {
     return <Empty>불러오는 중…</Empty>
@@ -94,10 +93,10 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
                   className="h-10 rounded-xl border border-line px-3.5 text-sm outline-none focus:border-brand"
                 />
                 <div className="flex gap-2">
-                  <Button size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(true)}>
+                  <Button size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(true)}>
                     {disputed ? '이의 기각 · 상계 유지' : `${won(payment.offsetKrw)} 상계 결정`}
                   </Button>
-                  <Button kind="ghost" size="lg" className="flex-1" disabled={decide.isPending} onClick={() => decide.mutate(false)}>
+                  <Button kind="ghost" size="lg" className="flex-1" disabled={locked} onClick={() => decide.mutate(false)}>
                     {disputed ? '이의 인정 · 상계 취소' : '전액 지급 · 별도 회수'}
                   </Button>
                 </div>
@@ -106,6 +105,7 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
                     ? '상계를 취소하면 줄였던 미수금이 되살아나고 장려금 전액을 은행으로 보냅니다.'
                     : '상계를 결정하면 미수금이 줄고 대리점에 상계 통지가 나갑니다. 남는 금액이 있으면 지급 계좌 확인을 거쳐 은행으로 보냅니다.'}
                 </p>
+                {decide.isSuccess && <Notice tone="info">결정을 보냈습니다. 반영되는 중입니다…</Notice>}
                 {decide.error && <Notice tone="error">{decide.error.message}</Notice>}
               </div>
             </div>

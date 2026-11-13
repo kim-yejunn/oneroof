@@ -136,9 +136,9 @@ function AgencyRow({ agency, role, open, toggle }: { agency: ReceivableAgency; r
   const deposit = useMutation({
     mutationFn: () =>
       post(`/agencies/${agency.agencyId}/deposits`, role, { amountKrw: Number(amount), bankAccount: account || '모의 입금 계좌' }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries()
       toggle()
-      void queryClient.invalidateQueries()
     },
   })
   const adjusted = agency.offsetKrw + agency.depositKrw

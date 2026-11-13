@@ -222,4 +222,5 @@ export const ACTION_LABEL: Record<string, string> = {
   RECEIVABLE_OFFSET_REVERSED: '미수금 되살림',
   RECEIVABLE_DEPOSIT: '입금 반영',
   REPLY_INTERPRETED: '회신 해석',
+  DEMO_RESET: '시연 초기화',
 }
