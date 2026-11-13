@@ -246,7 +246,8 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
   return (
     <div className={`rounded-xl border p-3.5 ${waiting ? 'border-violet/40' : 'border-line'}`}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <StatusBadge status={item.status} />
+        {/* SENT means something else for payments ("은행 회신 대기"), so the request says it in its own words. */}
+        {waiting ? <Badge tone="orange">회신 대기</Badge> : <StatusBadge status={item.status} />}
         <Badge tone="violet">{KIND_LABEL[item.kind]}</Badge>
         <span className="text-xs text-ink-mute">
           요청 #{item.id} · {item.agencyIds.split(',').join(', ')} · 기한 {item.dueOn}
