@@ -62,9 +62,9 @@ function ComparisonCard({ comparison }: { comparison: OffsetComparison }) {
       </div>
       <div className="mt-3 flex flex-col gap-2">
         <Notice tone="warn">
-          교육용 가정: 대리점 계약서에 “이행기 지난 물품대금과 장려금 대등액 상계” 조항이 있다고 두고, {comparison.overdueDaysOver}일
-          넘게 연체된 잔액만 대상으로 합니다. 장려금 몰수가 아니라 상계라 같은 금액의 미수금이 함께 줄어듭니다. 계약 근거 없는 장려금
-          미지급은 대리점법상 불이익 제공입니다(공정위 2024-04 가구 3사 시정명령).
+          교육용 가정: 대리점 계약서에 “이행기 지난 물품대금과 장려금 대등액 상계” 조항이 있고 상계 요건(같은 당사자·같은 종류 채무·이행기
+          도래)을 확인했다고 두며, {comparison.overdueDaysOver}일 넘게 연체된 잔액만 대상으로 합니다. 원본에 계약서는 없습니다. 장려금
+          몰수가 아니라 상계라 같은 금액의 미수금이 함께 줄어들고, 시스템은 장려금을 스스로 깎지 않습니다.
         </Notice>
         <p className="text-xs leading-relaxed text-ink-mute">
           다른 부서 영향: 회계·자금팀의 채권 회수 목표 때문에 지급 대안이 달라집니다. 영업 승인 뒤에도 연체 대리점의 장려금은 회계·자금팀이

@@ -73,8 +73,8 @@ class CommandController implements ConsoleCommandApi {
 	}
 
 	@Override
-	public ResetResult resetDemo(String role) {
-		return new ResetResult(this.demoReset.reset(actor(role).name()));
+	public ResetResult resetDemo(String role, String key) {
+		return new ResetResult(this.demoReset.reset(key, actor(role).name()));
 	}
 
 	/** The event id is derived from the content, so entering the same deposit twice is harmless. */

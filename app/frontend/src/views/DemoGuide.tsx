@@ -197,6 +197,7 @@ export function DemoGuide({ role }: { role: RoleCode }) {
   const queryClient = useQueryClient()
   const [running, setRunning] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, { ok: boolean; text: string }>>({})
+  const [resetKey, setResetKey] = useState(storedKey)
 
   const run = async (id: string, action: () => Promise<string>) => {
     setRunning(id)
@@ -216,7 +217,8 @@ export function DemoGuide({ role }: { role: RoleCode }) {
       return
     }
     void run('reset', async () => {
-      const result = await post<{ tablesCleared: number }>('/demo/reset', role, {})
+      rememberKey(resetKey)
+      const result = await post<{ tablesCleared: number }>('/demo/reset', role, {}, { 'X-Oneroof-Demo-Key': resetKey })
       setResults({})
       return `테이블 ${result.tablesCleared}개를 비우고 원본을 다시 적재했습니다`
     })
@@ -227,11 +229,20 @@ export function DemoGuide({ role }: { role: RoleCode }) {
       <Card>
         <CardTitle aside={<ProvenanceBadge code="ORIGINAL" />}>시연 도우미</CardTitle>
         <p className="text-[13px] leading-relaxed text-ink-soft">
-          연습·녹화용입니다. 초기화하면 처리 기록이 모두 지워지고 원본 데이터만 다시 적재됩니다(원본 파일은 바뀌지 않음). 아래 단계는
+          연습·녹화용입니다. 초기화하면 처리 기록이 모두 지워지고 원본 데이터만 다시 적재됩니다(원본 파일은 바뀌지 않음). 로그인이
+          없는 시연 환경이라 초기화는 서버에 설정한 키를 아는 사람만 할 수 있고, 키가 없는 환경에서는 꺼져 있습니다. 아래 단계는
           화면의 버튼과 같은 API를 순서대로 부르며, 각 화면에서 직접 눌러도 결과가 같습니다.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <Button kind="danger" disabled={running !== null} onClick={reset}>
+          <input
+            type="password"
+            value={resetKey}
+            onChange={(event) => setResetKey(event.target.value)}
+            placeholder="초기화 키"
+            aria-label="시연 초기화 키"
+            className="h-10 w-44 rounded-xl border border-line px-3.5 text-sm outline-none focus:border-brand"
+          />
+          <Button kind="danger" disabled={running !== null || !resetKey} onClick={reset}>
             {running === 'reset' ? '초기화 중…' : '시연 초기화'}
           </Button>
           {results.reset && <ResultText result={results.reset} />}
@@ -276,6 +287,24 @@ export function DemoGuide({ role }: { role: RoleCode }) {
       </Notice>
     </div>
   )
+}
+
+const KEY_STORAGE = 'oneroof.demo-key'
+
+function storedKey(): string {
+  try {
+    return window.sessionStorage.getItem(KEY_STORAGE) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+function rememberKey(value: string) {
+  try {
+    window.sessionStorage.setItem(KEY_STORAGE, value)
+  } catch {
+    // Not remembered when storage is unavailable; the field simply starts empty next time.
+  }
 }
 
 function ResultText({ result }: { result: { ok: boolean; text: string } }) {

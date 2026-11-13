@@ -149,6 +149,11 @@ class ConsoleApiTests {
 		assertThat(overpaid.statusCode()).isEqualTo(400);
 		assertThat(JsonPath.<String>read(overpaid.body(), "$.message")).contains("남은 미수금");
 
+		// No reset key is configured here, so the reset is off for everyone.
+		HttpResponse<String> reset = post("/api/demo/reset", "SALES_SUPPORT", "{}");
+		assertThat(reset.statusCode()).isEqualTo(403);
+		assertThat(JsonPath.<String>read(reset.body(), "$.message")).contains("꺼져");
+
 		HttpResponse<String> missing = get("/api/reviews/999999");
 		assertThat(missing.statusCode()).isEqualTo(404);
 		assertThat(JsonPath.<String>read(missing.body(), "$.code")).isEqualTo("NOT_FOUND");

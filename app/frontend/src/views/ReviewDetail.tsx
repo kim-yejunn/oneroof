@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { get, post } from '../api.ts'
 import type { Group, HistoryMonth, ReviewDetail as Detail, RoleCode } from '../api.ts'
+import { AiChecklist, useAiChecklist } from './AiChecklist.tsx'
 import {
   ACTION_LABEL,
   Badge,
@@ -62,9 +63,17 @@ export function ReviewDetail({ reviewId, role }: { reviewId: number; role: RoleC
 function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
   const queryClient = useQueryClient()
   const [comment, setComment] = useState('')
+  // The latest interpreted reply about this review, for example the explanation behind a resubmission.
+  const interpreted = [...review.clarifications]
+    .filter((item) => item.subjectType === 'RebateReview' && item.aiSummary)
+    .sort((a, b) => b.id - a.id)[0]
+  const checklist = useAiChecklist(interpreted)
   const decide = useMutation({
     mutationFn: (approved: boolean) =>
-      post(`/approvals/${review.approvalRequestId}/decision`, role, { approved, comment }),
+      post(`/approvals/${review.approvalRequestId}/decision`, role, {
+        approved,
+        comment: [comment.trim(), checklist.note()].filter(Boolean).join(' '),
+      }),
     onSuccess: () => queryClient.invalidateQueries(),
   })
   // Sent once: stays locked until the review moves on (the card is keyed by its approval request).
@@ -129,6 +138,7 @@ function DecisionCard({ review, role }: { review: Detail; role: RoleCode }) {
                 보내면 서버가 거부합니다.
               </Notice>
             )}
+            <AiChecklist checklist={checklist} />
             <input
               value={comment}
               onChange={(event) => setComment(event.target.value)}

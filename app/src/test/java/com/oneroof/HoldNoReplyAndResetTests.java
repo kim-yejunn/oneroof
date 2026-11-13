@@ -22,7 +22,7 @@ import org.springframework.test.annotation.DirtiesContext;
  * Two paths the other flows leave out: an agency that never confirms its payee account, and the
  * demo reset that puts everything back to the original data.
  */
-@SpringBootTest(properties = "oneroof.offset.enabled=false")
+@SpringBootTest(properties = { "oneroof.offset.enabled=false", "oneroof.demo.reset-key=test-key" })
 @Import(TestcontainersConfiguration.class)
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class HoldNoReplyAndResetTests {
@@ -65,8 +65,11 @@ class HoldNoReplyAndResetTests {
 		await().atMost(Duration.ofSeconds(20))
 			.untilAsserted(() -> assertThat(count("event_publication WHERE completion_date IS NULL")).isZero());
 
-		// The demo reset empties every table and loads the originals again.
-		assertThat(this.demoReset.reset(Role.SALES_SUPPORT.name())).isGreaterThan(10);
+		// The demo reset needs the presenter's key, then empties every table and loads the originals again.
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> this.demoReset.reset("wrong", Role.SALES_SUPPORT.name()))
+			.isInstanceOf(SecurityException.class);
+		assertThat(count("payment_instruction")).isPositive();
+		assertThat(this.demoReset.reset("test-key", Role.SALES_SUPPORT.name())).isGreaterThan(10);
 		assertThat(count("payment_instruction")).isZero();
 		assertThat(count("approval_request")).isZero();
 		assertThat(count("rebate_claim WHERE period_ym = '2026-06' AND settlement_status = 'PENDING'")).isEqualTo(40);

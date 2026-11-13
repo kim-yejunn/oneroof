@@ -363,11 +363,11 @@ export async function get<T>(path: string): Promise<T> {
   return parse<T>(await fetch(`/api${path}`))
 }
 
-export async function post<T>(path: string, role: RoleCode, body: unknown): Promise<T> {
+export async function post<T>(path: string, role: RoleCode, body: unknown, headers: Record<string, string> = {}): Promise<T> {
   return parse<T>(
     await fetch(`/api${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Oneroof-Role': role },
+      headers: { 'Content-Type': 'application/json', 'X-Oneroof-Role': role, ...headers },
       body: JSON.stringify(body),
     }),
   )

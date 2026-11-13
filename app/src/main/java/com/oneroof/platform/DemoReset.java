@@ -13,9 +13,13 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Puts the demonstration back to the state right after the original data was loaded: every table
  * is emptied and the originals are loaded again. Tables whose rows come from migrations rather
- * than from the original files (the schema history, the limit policy) are kept. The original files
- * themselves are never touched. Meant for rehearsing and recording the demo; switched off with
- * {@code oneroof.demo.reset-enabled=false}.
+ * than from the original files (the schema history, the limit policy) are kept.
+ *
+ * <p>The app has no sign-in, so the reset needs a key known only to the presenter
+ * ({@code oneroof.demo.reset-key}); without a configured key it is off. Emptying and reloading run
+ * in one transaction: if loading fails, nothing was emptied, and the table locks taken by TRUNCATE
+ * make concurrent writers wait until the reset is complete. The original files
+ * themselves are never touched. Meant for rehearsing and recording the demo.
  */
 @Service
 public class DemoReset {
@@ -27,25 +31,29 @@ public class DemoReset {
 	private final TransactionTemplate transactions;
 	private final OriginalDataSeeder seeder;
 	private final AuditLog auditLog;
-	private final boolean enabled;
+	private final String key;
 
 	DemoReset(JdbcTemplate jdbc, TransactionTemplate transactions, OriginalDataSeeder seeder, AuditLog auditLog,
-			@Value("${oneroof.demo.reset-enabled:true}") boolean enabled) {
+			@Value("${oneroof.demo.reset-key:}") String key) {
 		this.jdbc = jdbc;
 		this.transactions = transactions;
 		this.seeder = seeder;
 		this.auditLog = auditLog;
-		this.enabled = enabled;
+		this.key = key == null ? "" : key.trim();
 	}
 
-	public boolean enabled() {
-		return this.enabled;
-	}
-
-	/** @return the number of tables emptied */
-	public int reset(String requestedBy) {
-		if (!this.enabled) {
-			throw new IllegalStateException("이 환경에서는 시연 초기화가 꺼져 있음");
+	/**
+	 * @param presentedKey the key sent with the request
+	 * @return the number of tables emptied
+	 * @throws SecurityException when the reset is off here or the key does not match
+	 */
+	public int reset(String presentedKey, String requestedBy) {
+		if (this.key.isEmpty()) {
+			throw new SecurityException("이 환경에는 시연 초기화 키가 설정되지 않아 초기화가 꺼져 있음");
+		}
+		if (presentedKey == null || !java.security.MessageDigest.isEqual(this.key.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+				presentedKey.trim().getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+			throw new SecurityException("시연 초기화 키가 맞지 않음");
 		}
 		List<String> tables = this.jdbc
 			.queryForList("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename",
@@ -53,13 +61,14 @@ public class DemoReset {
 			.stream()
 			.filter((table) -> !KEPT.contains(table))
 			.toList();
-		this.transactions.executeWithoutResult((status) -> this.jdbc.execute("TRUNCATE "
-				+ String.join(", ", tables.stream().map((table) -> "\"" + table + "\"").toList())
-				+ " RESTART IDENTITY CASCADE"));
-		this.seeder.seed();
-		this.auditLog.record(new AuditRecord(requestedBy, "DEMO_RESET", "Demo", "reset",
-				"시연 초기화: 테이블 %d개를 비우고 원본을 다시 적재함 (원본 파일은 그대로)".formatted(tables.size()),
-				Provenance.ORIGINAL, null));
+		this.transactions.executeWithoutResult((status) -> {
+			this.jdbc.execute("TRUNCATE " + String.join(", ", tables.stream().map((table) -> "\"" + table + "\"").toList())
+					+ " RESTART IDENTITY CASCADE");
+			this.seeder.seed();
+			this.auditLog.record(new AuditRecord(requestedBy, "DEMO_RESET", "Demo", "reset",
+					"시연 초기화: 테이블 %d개를 비우고 원본을 다시 적재함 (원본 파일은 그대로)".formatted(tables.size()),
+					Provenance.ORIGINAL, null));
+		});
 		return tables.size();
 	}
 }

@@ -18,6 +18,11 @@ class ApiErrors {
 		return error(HttpStatus.FORBIDDEN, "AUTHORITY", ex.getMessage());
 	}
 
+	@ExceptionHandler(SecurityException.class)
+	ResponseEntity<ApiErrorResponse> forbidden(SecurityException ex) {
+		return error(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.getMessage());
+	}
+
 	@ExceptionHandler(IllegalStateException.class)
 	ResponseEntity<ApiErrorResponse> conflict(IllegalStateException ex) {
 		return error(HttpStatus.CONFLICT, "STATE", ex.getMessage());

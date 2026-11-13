@@ -37,6 +37,8 @@ public interface ConsoleCommandApi {
 
 	String ROLE_HEADER = "X-Oneroof-Role";
 
+	String DEMO_KEY_HEADER = "X-Oneroof-Demo-Key";
+
 	@Operation(summary = "정산 접수",
 			description = "한 달치 미지급 장려금을 한도 단위로 묶어 권한자에게 상신합니다. 같은 달을 다시 보내면 아무것도 하지 않습니다.")
 	@ApiResponse(responseCode = "200", description = "접수 결과")
@@ -76,10 +78,14 @@ public interface ConsoleCommandApi {
 	BankRepliesResult bankReplies();
 
 	@Operation(summary = "시연 초기화",
-			description = "모든 처리 기록을 지우고 원본을 다시 적재해 처음 상태로 돌립니다. 원본 파일은 바뀌지 않습니다. 시연 연습·녹화용")
+			description = "모든 처리 기록을 지우고 원본을 다시 적재해 처음 상태로 돌립니다. 원본 파일은 바뀌지 않습니다. 시연 연습·녹화용. "
+					+ "서버에 설정한 초기화 키(ONEROOF_DEMO_RESET_KEY)를 헤더로 보내야 하며, 키가 설정되지 않은 환경에서는 꺼져 있습니다.")
 	@ApiResponse(responseCode = "200", description = "초기화 결과")
+	@ApiResponse(responseCode = "403", description = "키가 없거나 맞지 않음",
+			content = @Content(schema = @Schema(implementation = ApiErrorResponse.class)))
 	@PostMapping("/demo/reset")
-	ResetResult resetDemo(@RoleHeader @RequestHeader(ROLE_HEADER) String role);
+	ResetResult resetDemo(@RoleHeader @RequestHeader(ROLE_HEADER) String role,
+			@Parameter(in = ParameterIn.HEADER, description = "시연 초기화 키") @RequestHeader(name = DEMO_KEY_HEADER, required = false) String key);
 
 	@Operation(summary = "모의 대리점 입금",
 			description = "대리점이 미수금을 입금했다는 은행 통지를 흉내 냅니다. 가장 오래 연체된 미수금부터 줄고, 결정 전 상계 제안은 "

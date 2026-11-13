@@ -387,7 +387,8 @@ function Interpretation({ item }: { item: Clarification }) {
       </dl>
       {notes.length > 0 && <p className="mt-1.5 text-[11px] text-ink-mute">검증: {notes.join(' / ')}</p>}
       <p className="mt-1.5 text-[11px] text-ink-mute">
-        회신 원문을 구조화한 참고 자료입니다. 금액·증빙은 원문에 있는 것만 남겼고, 승인·지급 판단에는 쓰이지 않습니다.
+        회신 원문을 구조화한 참고 자료입니다. 금액·증빙은 원문에 있는 것만 남겼습니다. 결정은 사람이 하고, 결정 화면에서 확인한 제안은
+        결정 기록에 남습니다.
       </p>
     </div>
   )

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { get, post } from '../api.ts'
 import type { Clarification, Payment, PendingApproval, ReceivableItem, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ProvenanceBadge, ROLE_LABEL, SourceRef, StatusBadge, won } from '../ui.tsx'
+import { AiChecklist, useAiChecklist } from './AiChecklist.tsx'
 import { ClarificationItem } from './Exceptions.tsx'
 
 /**
@@ -25,8 +26,13 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
     queryFn: () => get<Clarification[]>('/clarifications'),
   })
   const notice = clarifications.find((item) => item.id === payment?.clarificationId && item.kind === 'OFFSET_NOTICE')
+  const checklist = useAiChecklist(notice?.aiSummary ? notice : undefined)
   const decide = useMutation({
-    mutationFn: (approved: boolean) => post(`/approvals/${request.id}/decision`, role, { approved, comment }),
+    mutationFn: (approved: boolean) =>
+      post(`/approvals/${request.id}/decision`, role, {
+        approved,
+        comment: [comment.trim(), checklist.note()].filter(Boolean).join(' '),
+      }),
     onSuccess: () => queryClient.invalidateQueries(),
   })
   // Sent once: stays locked until the item leaves the queue and the workbench moves on.
@@ -86,6 +92,7 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
                     현재 역할은 {ROLE_LABEL[role]}입니다. 상계 결정은 회계·자금팀 권한이라 서버가 거부합니다.
                   </Notice>
                 )}
+                {disputed && <AiChecklist checklist={checklist} />}
                 <input
                   value={comment}
                   onChange={(event) => setComment(event.target.value)}
@@ -150,13 +157,14 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
             <ul className="flex list-disc flex-col gap-1.5 pl-4 text-[13px] leading-relaxed text-ink-soft">
               <li>
                 <b className="text-ink">교육용 가정</b>: 대리점 계약서에 “이행기 지난 물품대금과 장려금을 대등액으로 상계할 수 있다”는
-                조항이 있다고 둡니다. 원본에 계약서가 없습니다. 대상은 90일 초과 연체분만입니다.
+                조항이 있고, 상계 요건(같은 당사자·같은 종류 채무·이행기 도래, 민법 제492조)을 확인했다고 둡니다. 원본에 계약서가 없습니다.
+                대상은 90일 초과 연체분만입니다.
               </li>
               <li>
-                계약 근거 없이 장려금을 깎거나 주지 않으면 대리점법상 불이익 제공입니다. 공정위는 2024년 4월 연체 비율·일수와 무관하게
-                장려금 전액을 주지 않은 가구 3사에 시정명령을 내렸습니다.
+                시스템은 장려금을 스스로 깎지 않고 상계 여부는 회계·자금팀이 정합니다. 참고 사례: 2024년 4월 공정위는 결제 지연과
+                무관하게 장려금 전액을 주지 않은 가구 3사에 시정명령을 내렸습니다(일반 결론이 아니라 이 설계를 택한 근거).
               </li>
-              <li>상계는 같은 법인 사이 채권끼리만 합니다(민법 제492조). 관련자 그룹 안의 다른 대리점 미수금은 쓰지 않습니다.</li>
+              <li>상계는 같은 당사자 사이 채권끼리만 합니다. 관련자 그룹 안의 다른 대리점 미수금은 쓰지 않습니다.</li>
               <li>대리점이 상계에 이의를 제기하면 회계·자금팀이 다시 판단합니다.</li>
             </ul>
           </Card>
