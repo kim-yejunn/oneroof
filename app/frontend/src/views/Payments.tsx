@@ -49,6 +49,7 @@ export function Payments({ role }: { role: RoleCode }) {
             </p>
           </div>
           <Button
+            className="shrink-0 whitespace-nowrap"
             disabled={waiting.length === 0 || replyAll.isPending || reply.isPending}
             onClick={() => replyAll.mutate(waiting.map((payment) => payment.id))}
           >
@@ -80,70 +81,75 @@ export function Payments({ role }: { role: RoleCode }) {
         {payments.length === 0 ? (
           <Empty>승인된 장려금이 없어 지급 지시가 없습니다.</Empty>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs text-ink-mute">
-                <th className="py-2 font-medium">지시</th>
-                <th className="py-2 font-medium">대리점</th>
-                <th className="py-2 font-medium">장려금</th>
-                <th className="py-2 text-right font-medium">장려금</th>
-                <th className="py-2 text-right font-medium">상계</th>
-                <th className="py-2 text-right font-medium">현금 지급</th>
-                <th className="py-2 pl-4 font-medium">상태</th>
-                <th className="py-2 font-medium">지급 계좌</th>
-                <th className="py-2 font-medium">전송 접수번호</th>
-                <th className="py-2 font-medium">은행 거래번호</th>
-                <th className="py-2 text-right font-medium">모의 회신</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payments.map((payment) => (
-                <tr key={payment.id} className="border-b border-line last:border-0">
-                  <td className="num py-2.5 font-semibold">#{payment.id}</td>
-                  <td className="py-2.5">
-                    <span className="font-semibold">{payment.agencyId}</span>{' '}
-                    <span className="text-ink-soft">{payment.agencyName}</span>
-                  </td>
-                  <td className="py-2.5 text-ink-soft">
-                    {payment.referenceId} <Badge tone="gray">{payment.period}</Badge>
-                  </td>
-                  <td className="num py-2.5 text-right text-ink-soft">{won(payment.amountKrw)}</td>
-                  <td className="num py-2.5 text-right text-brand-strong" title={payment.offsetBasis ?? undefined}>
-                    {payment.offsetKrw > 0 ? `−${won(payment.offsetKrw)}` : '—'}
-                    {payment.status === 'OFFSET_REVIEW' && payment.offsetKrw > 0 && <div className="text-[11px] text-ink-mute">제안</div>}
-                  </td>
-                  <td className="num py-2.5 text-right font-semibold">{won(payment.netKrw)}</td>
-                  <td className="py-2.5 pl-4" title={payment.holdReason ?? undefined}>
-                    <StatusBadge status={payment.status} />
-                    {payment.holdReason && (
-                      <div className="mt-1 max-w-64 text-[11px] leading-snug text-ink-mute">
-                        {payment.status === 'HELD' ? '보류: ' : '보류 해제됨: '}
-                        {payment.holdReason.replace(/ — 지급 계좌 미확인.*$/, '')}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-2.5 text-xs text-ink-soft">{payment.payeeAccount ?? '—'}</td>
-                  <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.gatewayReference ?? '—'}</td>
-                  <td className="py-2.5 font-mono text-xs text-ink-soft">{payment.bankReference ?? '—'}</td>
-                  <td className="py-2.5 text-right">
-                    {payment.status === 'SENT' && answered.has(payment.id) && (
-                      <span className="text-xs text-ink-mute">반영 중…</span>
-                    )}
-                    {payment.status === 'SENT' && !answered.has(payment.id) && (
-                      <span className="inline-flex gap-1.5">
-                        <Button size="sm" kind="secondary" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: true })}>
-                          완료
-                        </Button>
-                        <Button size="sm" kind="danger" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: false })}>
-                          실패
-                        </Button>
-                      </span>
-                    )}
-                  </td>
+          <div className="@container overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr className="border-b border-line text-left text-xs text-ink-mute">
+                  <th className="py-2 pr-3 font-medium">대리점 · 장려금</th>
+                  <th className="py-2 pr-3 text-right font-medium">장려금</th>
+                  <th className="py-2 pr-3 text-right font-medium">상계</th>
+                  <th className="py-2 pr-3 text-right font-medium">현금 지급</th>
+                  <th className="py-2 pr-3 font-medium">상태</th>
+                  <th className="hidden py-2 pr-3 font-medium @4xl:table-cell">지급 계좌</th>
+                  <th className="hidden py-2 pr-3 font-medium @5xl:table-cell">은행 처리</th>
+                  <th className="py-2 text-right font-medium">모의 회신</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {payments.map((payment) => (
+                  <tr key={payment.id} className="border-b border-line align-middle last:border-0">
+                    <td className="py-2.5 pr-3">
+                      <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+                        <span className="num text-xs text-ink-mute">#{payment.id}</span>
+                        <span className="font-semibold">{payment.agencyId}</span>
+                        <span className="truncate text-ink-soft">{payment.agencyName}</span>
+                      </div>
+                      <div className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-ink-mute">
+                        {payment.referenceId} <Badge tone="gray">{payment.period}</Badge>
+                      </div>
+                    </td>
+                    <td className="num whitespace-nowrap py-2.5 pr-3 text-right text-ink-soft">{won(payment.amountKrw)}</td>
+                    <td className="num whitespace-nowrap py-2.5 pr-3 text-right text-brand-strong" title={payment.offsetBasis ?? undefined}>
+                      {payment.offsetKrw > 0 ? `−${won(payment.offsetKrw)}` : <span className="text-ink-mute">—</span>}
+                      {payment.status === 'OFFSET_REVIEW' && payment.offsetKrw > 0 && <div className="text-[11px] text-ink-mute">제안</div>}
+                    </td>
+                    <td className="num whitespace-nowrap py-2.5 pr-3 text-right font-semibold">{won(payment.netKrw)}</td>
+                    <td className="py-2.5 pr-3" title={payment.holdReason ?? undefined}>
+                      <StatusBadge status={payment.status} />
+                      {payment.holdReason && (
+                        <div className="mt-1 max-w-56 text-[11px] leading-snug text-ink-mute">
+                          {payment.status === 'HELD' ? '보류: ' : '보류 해제됨: '}
+                          {payment.holdReason.replace(/ — 지급 계좌 미확인.*$/, '')}
+                        </div>
+                      )}
+                    </td>
+                    <td className="hidden whitespace-nowrap py-2.5 pr-3 text-xs text-ink-soft @4xl:table-cell">
+                      {payment.payeeAccount ?? '—'}
+                    </td>
+                    <td className="hidden whitespace-nowrap py-2.5 pr-3 font-mono text-[11px] leading-relaxed text-ink-soft @5xl:table-cell">
+                      <div title="전송 접수번호">{payment.gatewayReference ?? '—'}</div>
+                      {payment.bankReference && <div title="은행 거래번호">{payment.bankReference}</div>}
+                    </td>
+                    <td className="whitespace-nowrap py-2.5 text-right">
+                      {payment.status === 'SENT' && answered.has(payment.id) && (
+                        <span className="text-xs text-ink-mute">반영 중…</span>
+                      )}
+                      {payment.status === 'SENT' && !answered.has(payment.id) && (
+                        <span className="inline-flex gap-1.5">
+                          <Button size="sm" kind="secondary" className="whitespace-nowrap" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: true })}>
+                            완료
+                          </Button>
+                          <Button size="sm" kind="danger" className="whitespace-nowrap" disabled={reply.isPending || replyAll.isPending} onClick={() => reply.mutate({ id: payment.id, succeeded: false })}>
+                            실패
+                          </Button>
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>

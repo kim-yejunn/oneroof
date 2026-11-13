@@ -143,7 +143,7 @@ export function Button({
     <button
       type="button"
       {...props}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${sizes[size]} ${BUTTONS[kind]} ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${sizes[size]} ${BUTTONS[kind]} ${className}`}
     />
   )
 }
