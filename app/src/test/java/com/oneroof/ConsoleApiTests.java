@@ -118,7 +118,7 @@ class ConsoleApiTests {
 				"/api/approvals/decisions", "/api/payments/{id}/bank-reply", "/api/payments/bank-replies",
 				"/api/master-changes", "/api/clarifications", "/api/clarifications/{id}/reply", "/api/findings",
 				"/api/audit-referrals", "/api/agencies/{id}/identities", "/api/receivables",
-				"/api/agencies/{id}/receivables", "/api/agencies/{id}/deposits", "/api/offsets/comparison");
+				"/api/agencies/{id}/receivables", "/api/agencies/{id}/deposits", "/api/offsets/comparison", "/api/demo/reset");
 		assertThat(JsonPath.<List<String>>read(docs, "$.paths['/api/settlements'].post.parameters[*].name"))
 			.containsExactly("X-Oneroof-Role");
 		assertThat(JsonPath.<java.util.Map<String, Object>>read(docs, "$.components.schemas").keySet())

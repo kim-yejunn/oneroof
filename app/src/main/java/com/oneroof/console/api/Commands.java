@@ -33,6 +33,10 @@ public final class Commands {
 	public record BankReplyRequest(@Schema(description = "true 이체 완료, false 이체 실패") boolean succeeded) {
 	}
 
+	@Schema(description = "시연 초기화 결과")
+	public record ResetResult(@Schema(description = "비운 테이블 수") int tablesCleared) {
+	}
+
 	@Schema(description = "대리점 입금 모의 통지. 가장 오래 연체된 미수금부터 줄어듭니다.")
 	public record DepositRequest(
 			@Positive @Schema(description = "입금액", example = "10500000") long amountKrw,

@@ -6,6 +6,7 @@ import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
 import com.oneroof.console.api.Commands.ClarificationReplyRequest;
 import com.oneroof.console.api.Commands.DepositRequest;
+import com.oneroof.console.api.Commands.ResetResult;
 import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
@@ -73,6 +74,12 @@ public interface ConsoleCommandApi {
 	@Operation(summary = "모의 은행 회신 (대기 전체)", description = "은행 회신을 기다리는 모든 지급 지시에 이체 완료를 회신합니다.")
 	@PostMapping("/payments/bank-replies")
 	BankRepliesResult bankReplies();
+
+	@Operation(summary = "시연 초기화",
+			description = "모든 처리 기록을 지우고 원본을 다시 적재해 처음 상태로 돌립니다. 원본 파일은 바뀌지 않습니다. 시연 연습·녹화용")
+	@ApiResponse(responseCode = "200", description = "초기화 결과")
+	@PostMapping("/demo/reset")
+	ResetResult resetDemo(@RoleHeader @RequestHeader(ROLE_HEADER) String role);
 
 	@Operation(summary = "모의 대리점 입금",
 			description = "대리점이 미수금을 입금했다는 은행 통지를 흉내 냅니다. 가장 오래 연체된 미수금부터 줄고, 결정 전 상계 제안은 "

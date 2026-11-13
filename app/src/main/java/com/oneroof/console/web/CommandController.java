@@ -13,6 +13,7 @@ import com.oneroof.console.api.Commands.BulkDecisionRequest;
 import com.oneroof.console.api.Commands.BulkDecisionResult;
 import com.oneroof.console.api.Commands.ClarificationReplyRequest;
 import com.oneroof.console.api.Commands.DepositRequest;
+import com.oneroof.console.api.Commands.ResetResult;
 import com.oneroof.console.api.Commands.MasterChangeRequest;
 import com.oneroof.console.api.Commands.DecisionRequest;
 import com.oneroof.console.api.Commands.DecisionResult;
@@ -24,6 +25,7 @@ import com.oneroof.intake.PaymentResultsReceived;
 import com.oneroof.intake.Receipt;
 import com.oneroof.masterdata.MasterCorrectionService;
 import com.oneroof.payment.PaymentService;
+import com.oneroof.platform.DemoReset;
 import com.oneroof.receivables.ReceivablesLedger;
 import com.oneroof.shared.Role;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,10 +40,12 @@ class CommandController implements ConsoleCommandApi {
 	private final MasterCorrectionService masterCorrections;
 	private final ClarificationService clarifications;
 	private final ReceivablesLedger receivables;
+	private final DemoReset demoReset;
 
 	CommandController(IntakeService intake, ApprovalService approvals, PaymentService payments,
 			MasterCorrectionService masterCorrections, ClarificationService clarifications,
-			ReceivablesLedger receivables) {
+			ReceivablesLedger receivables, DemoReset demoReset) {
+		this.demoReset = demoReset;
 		this.receivables = receivables;
 		this.intake = intake;
 		this.approvals = approvals;
@@ -66,6 +70,11 @@ class CommandController implements ConsoleCommandApi {
 				(request.newValue().trim() + "|" + request.effectiveFrom()).hashCode());
 		return receipt(this.intake.receiveMasterChange(eventId, request.agencyId(), request.kind(),
 				request.newValue().trim(), request.effectiveFrom(), request.reason(), actor.name()));
+	}
+
+	@Override
+	public ResetResult resetDemo(String role) {
+		return new ResetResult(this.demoReset.reset(actor(role).name()));
 	}
 
 	/** The event id is derived from the content, so entering the same deposit twice is harmless. */
