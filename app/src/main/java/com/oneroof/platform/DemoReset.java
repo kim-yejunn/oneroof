@@ -61,6 +61,22 @@ public class DemoReset {
 			.stream()
 			.filter((table) -> !KEPT.contains(table))
 			.toList();
+		// The screens keep polling while the reset runs, and their queries can lock the same tables in
+		// another order. Postgres then aborts one side; when that is the reset, it simply runs again.
+		for (int attempt = 1;; attempt++) {
+			try {
+				truncateAndReload(tables, requestedBy);
+				return tables.size();
+			}
+			catch (org.springframework.dao.ConcurrencyFailureException ex) {
+				if (attempt == 3) {
+					throw ex;
+				}
+			}
+		}
+	}
+
+	private void truncateAndReload(List<String> tables, String requestedBy) {
 		this.transactions.executeWithoutResult((status) -> {
 			this.jdbc.execute("TRUNCATE " + String.join(", ", tables.stream().map((table) -> "\"" + table + "\"").toList())
 					+ " RESTART IDENTITY CASCADE");
@@ -69,6 +85,5 @@ public class DemoReset {
 					"시연 초기화: 테이블 %d개를 비우고 원본을 다시 적재함 (원본 파일은 그대로)".formatted(tables.size()),
 					Provenance.ORIGINAL, null));
 		});
-		return tables.size();
 	}
 }

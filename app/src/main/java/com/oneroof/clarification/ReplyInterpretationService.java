@@ -82,7 +82,7 @@ class ReplyInterpretationService {
 		}
 		notes.addAll(checked.notes());
 		boolean fellBack = used == this.rules && this.interpreter != this.rules;
-		String by = used.name();
+		String by = used.answeredBy();
 		ReplyInterpretation value = checked.interpretation();
 		Provenance provenance = used == this.rules ? Provenance.CALCULATED : Provenance.AI_GENERATED;
 		this.transactions.executeWithoutResult((status) -> {

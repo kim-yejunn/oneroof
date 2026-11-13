@@ -46,6 +46,46 @@ class OpenAiCompatibleReplyInterpreterTests {
 	}
 
 	@Test
+	void triesOnceMoreWhenTheConnectionDrops() {
+		RestClient.Builder builder = RestClient.builder().baseUrl("https://provider.test/v1");
+		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+		server.expect(requestTo("https://provider.test/v1/chat/completions"))
+			.andRespond(org.springframework.test.web.client.response.MockRestResponseCreators
+				.withException(new java.io.IOException("Remote host terminated the handshake")));
+		server.expect(requestTo("https://provider.test/v1/chat/completions"))
+			.andRespond(withSuccess("""
+					{"choices":[{"finish_reason":"stop","message":{"content":
+					"{\\"summary\\":\\"반품 미반영 이의\\",\\"stance\\":\\"DISPUTES_OFFSET\\",\\"amountsKrw\\":[1200000]}"}}]}
+					""", MediaType.APPLICATION_JSON));
+
+		ReplyInterpretation result = new OpenAiCompatibleReplyInterpreter(builder, "free-model").interpret(INPUT);
+
+		assertThat(result.stance()).isEqualTo("DISPUTES_OFFSET");
+		server.verify();
+	}
+
+	@Test
+	void handsAnOverloadedRequestToTheNextModel() {
+		RestClient.Builder builder = RestClient.builder().baseUrl("https://provider.test/v1");
+		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+		server.expect(requestTo("https://provider.test/v1/chat/completions"))
+			.andExpect(jsonPath("$.model").value("busy-model"))
+			.andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withServiceUnavailable());
+		server.expect(requestTo("https://provider.test/v1/chat/completions"))
+			.andExpect(jsonPath("$.model").value("spare-model"))
+			.andRespond(withSuccess("""
+					{"choices":[{"finish_reason":"stop","message":{"content":
+					"{\\"summary\\":\\"반품 미반영 이의\\",\\"stance\\":\\"DISPUTES_OFFSET\\"}"}}]}
+					""", MediaType.APPLICATION_JSON));
+		OpenAiCompatibleReplyInterpreter interpreter = new OpenAiCompatibleReplyInterpreter(builder,
+				"busy-model, spare-model");
+
+		assertThat(interpreter.interpret(INPUT).stance()).isEqualTo("DISPUTES_OFFSET");
+		assertThat(interpreter.answeredBy()).isEqualTo("spare-model");
+		server.verify();
+	}
+
+	@Test
 	void refusesAnAnswerThatWasCutOff() {
 		RestClient.Builder builder = RestClient.builder().baseUrl("https://provider.test/v1");
 		MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
