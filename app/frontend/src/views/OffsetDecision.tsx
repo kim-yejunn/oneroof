@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { get, post } from '../api.ts'
-import type { Payment, PendingApproval, ReceivableItem, RoleCode } from '../api.ts'
+import type { Clarification, Payment, PendingApproval, ReceivableItem, RoleCode } from '../api.ts'
 import { Badge, Button, Card, CardTitle, Empty, Notice, ProvenanceBadge, ROLE_LABEL, SourceRef, StatusBadge, won } from '../ui.tsx'
+import { ClarificationItem } from './Exceptions.tsx'
 
 /**
  * Finance's decision on setting a rebate off against the agency's long-overdue receivables. The
@@ -19,6 +20,11 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
     queryFn: () => get<ReceivableItem[]>(`/agencies/${payment?.agencyId}/receivables`),
     enabled: Boolean(payment),
   })
+  const { data: clarifications = [] } = useQuery({
+    queryKey: ['clarifications'],
+    queryFn: () => get<Clarification[]>('/clarifications'),
+  })
+  const notice = clarifications.find((item) => item.id === payment?.clarificationId && item.kind === 'OFFSET_NOTICE')
   const decide = useMutation({
     mutationFn: (approved: boolean) => post(`/approvals/${request.id}/decision`, role, { approved, comment }),
     onSuccess: () => {
@@ -62,12 +68,17 @@ export function OffsetDecision({ request, role }: { request: PendingApproval; ro
               상계는 장려금 몰수가 아닙니다. 상계한 금액만큼 대리점의 물품대금 채무도 함께 소멸합니다. 상계 제안액은 장려금과
               90일 초과 연체 잔액 중 작은 금액입니다.
             </p>
-            {disputed && dispute && (
+            {disputed && notice ? (
               <div className="mt-3">
-                <Notice tone="warn">
-                  대리점 이의 (모의 회신): “{dispute}”
-                </Notice>
+                <ClarificationItem item={notice} compact />
               </div>
+            ) : (
+              disputed &&
+              dispute && (
+                <div className="mt-3">
+                  <Notice tone="warn">대리점 이의 (모의 회신): “{dispute}”</Notice>
+                </div>
+              )
             )}
             <div className="mt-5 border-t border-line pt-4">
               <div className="flex flex-col gap-3">

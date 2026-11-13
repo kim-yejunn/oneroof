@@ -32,6 +32,7 @@ const PROVENANCE: Record<ProvenanceCode, { label: string; tone: Tone; hint: stri
   ASSUMPTION: { label: '가정', tone: 'orange', hint: '원본에 없어 이 시스템이 둔 교육용 가정' },
   MOCK_REPLY: { label: '모의 회신', tone: 'teal', hint: '시연에서 사람·외부 기관 역할로 입력한 모의 처리' },
   CALCULATED: { label: '계산 결과', tone: 'blue', hint: '다른 값에서 이 시스템이 계산한 결과' },
+  AI_GENERATED: { label: 'AI 생성', tone: 'violet', hint: 'AI가 원문을 구조화한 검토용 초안. 스키마와 원문 대조로 검증했고 판단에는 쓰지 않음' },
 }
 
 /** Marks where a value came from, as the contest rules require for every value shown. */
@@ -220,4 +221,5 @@ export const ACTION_LABEL: Record<string, string> = {
   RECEIVABLE_OFFSET: '미수금 상계',
   RECEIVABLE_OFFSET_REVERSED: '미수금 되살림',
   RECEIVABLE_DEPOSIT: '입금 반영',
+  REPLY_INTERPRETED: '회신 해석',
 }

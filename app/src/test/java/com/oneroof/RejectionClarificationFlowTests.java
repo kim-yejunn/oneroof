@@ -92,6 +92,12 @@ class RejectionClarificationFlowTests {
 				}));
 		assertThat(review(reviewId).getStatus()).isEqualTo(ReviewStatus.AWAITING_APPROVAL);
 		assertThat(review(reviewId).getRound()).isEqualTo(2);
+		// The reply is also interpreted for the executive (rules here; no model is called in tests).
+		await().atMost(Duration.ofSeconds(20))
+			.untilAsserted(() -> assertThat(this.jdbc.queryForObject(
+					"SELECT evidence FROM reply_interpretation WHERE clarification_id = ?", String.class, clarification))
+				.contains("임대차계약서")
+				.contains("법인등기부"));
 
 		// 4. A second reply to the same request is acknowledged and ignored.
 		assertThat(this.intake.receiveClarificationReply("EVT-CLARIFY-" + clarification, clarification, "NO_REPLY", "",

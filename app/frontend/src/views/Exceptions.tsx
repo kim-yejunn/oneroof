@@ -269,6 +269,10 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
           <ProvenanceBadge code="MOCK_REPLY" />
         </div>
       )}
+      {item.aiSummary && <Interpretation item={item} />}
+      {item.outcome && item.outcome !== 'NO_REPLY' && !item.aiSummary && (
+        <p className="mt-2 text-xs text-ink-mute">회신 해석 중…</p>
+      )}
       {waiting && (
         <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
           <span className="text-xs font-semibold text-ink-soft">대리점 회신 입력 (모의)</span>
@@ -317,6 +321,70 @@ export function ClarificationItem({ item, compact = false }: { item: Clarificati
           {reply.error && <Notice tone="error">{reply.error.message}</Notice>}
         </div>
       )}
+    </div>
+  )
+}
+
+const STANCE_LABEL: Record<string, string> = {
+  EXPLAINS_RELATION: '관계 사유 설명',
+  DENIES_RELATION: '관계 부인',
+  PARTIAL: '일부만 설명',
+  UNCLEAR: '불분명',
+  CONFIRMS_ACCOUNT: '등록 계좌 확인',
+  CHANGES_ACCOUNT: '계좌 변경 요청',
+  ACCEPTS_OFFSET: '상계 수용',
+  DISPUTES_OFFSET: '상계 이의',
+}
+
+const lines = (value: string | null) => (value ? value.split('\n').filter(Boolean) : [])
+
+/** The reply put into shape for the reviewer. Advisory only: nothing in the flow reads it. */
+function Interpretation({ item }: { item: Clarification }) {
+  const ai = item.aiInterpreter !== 'rule-based'
+  const evidence = lines(item.aiEvidence)
+  const amounts = lines(item.aiAmounts)
+  const gaps = lines(item.aiGaps)
+  const followUps = lines(item.aiFollowUps)
+  const notes = lines(item.aiNotes)
+  return (
+    <div className="mt-2.5 rounded-lg border border-violet/30 bg-violet-soft/40 px-3 py-2.5 text-[13px]">
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs font-bold text-violet">회신 해석 · 검토용</span>
+        <ProvenanceBadge code={ai ? 'AI_GENERATED' : 'CALCULATED'} />
+        <Badge tone="gray">{ai ? item.aiInterpreter : item.aiFellBack ? '규칙 기반 (AI 실패로 대체)' : '규칙 기반'}</Badge>
+        {item.aiStance && <Badge tone="violet">{STANCE_LABEL[item.aiStance] ?? item.aiStance}</Badge>}
+      </div>
+      <p className="leading-relaxed">{item.aiSummary}</p>
+      <dl className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs leading-relaxed">
+        {evidence.length > 0 && (
+          <>
+            <dt className="font-semibold text-ink-soft">언급한 증빙</dt>
+            <dd>{evidence.join(', ')}</dd>
+          </>
+        )}
+        {amounts.length > 0 && (
+          <>
+            <dt className="font-semibold text-ink-soft">적힌 금액</dt>
+            <dd className="num">{amounts.map((amount) => won(Number(amount))).join(', ')}</dd>
+          </>
+        )}
+        {gaps.length > 0 && (
+          <>
+            <dt className="font-semibold text-danger">답하지 않은 것</dt>
+            <dd>{gaps.join(' · ')}</dd>
+          </>
+        )}
+        {followUps.length > 0 && (
+          <>
+            <dt className="font-semibold text-ink-soft">확인할 일</dt>
+            <dd>{followUps.join(' · ')}</dd>
+          </>
+        )}
+      </dl>
+      {notes.length > 0 && <p className="mt-1.5 text-[11px] text-ink-mute">검증: {notes.join(' / ')}</p>}
+      <p className="mt-1.5 text-[11px] text-ink-mute">
+        회신 원문을 구조화한 참고 자료입니다. 금액·증빙은 원문에 있는 것만 남겼고, 승인·지급 판단에는 쓰이지 않습니다.
+      </p>
     </div>
   )
 }

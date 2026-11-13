@@ -19,7 +19,13 @@ public enum Provenance {
 	MOCK_REPLY("모의 회신"),
 
 	/** A value this system computed from other values. */
-	CALCULATED("계산 결과");
+	CALCULATED("계산 결과"),
+
+	/**
+	 * Text an AI model wrote from other text, checked against a schema and against the source text,
+	 * and shown for a person to review. Never used to compute or decide.
+	 */
+	AI_GENERATED("AI 생성");
 
 	private final String label;
 

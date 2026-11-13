@@ -1,5 +1,5 @@
 export type RoleCode = 'SALES_SUPPORT' | 'SALES_EXECUTIVE' | 'FINANCE'
-export type ProvenanceCode = 'ORIGINAL' | 'DEPARTMENT_CLAIM' | 'ASSUMPTION' | 'MOCK_REPLY' | 'CALCULATED'
+export type ProvenanceCode = 'ORIGINAL' | 'DEPARTMENT_CLAIM' | 'ASSUMPTION' | 'MOCK_REPLY' | 'CALCULATED' | 'AI_GENERATED'
 
 export interface Session {
   businessDate: string
@@ -166,6 +166,16 @@ export interface Clarification {
   replyAccount: string | null
   repliedOn: string | null
   correlationId: string
+  aiInterpreter: string | null
+  aiFellBack: boolean | null
+  aiSummary: string | null
+  aiStance: string | null
+  aiReasons: string | null
+  aiEvidence: string | null
+  aiAmounts: string | null
+  aiGaps: string | null
+  aiFollowUps: string | null
+  aiNotes: string | null
 }
 
 export interface Finding {

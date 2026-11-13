@@ -38,3 +38,8 @@ out/
 
 ### Console build output copied in by the Docker build ###
 src/main/resources/static/
+
+### Local secrets (API keys etc.) ###
+.env
+.env.*
+!.env.example
